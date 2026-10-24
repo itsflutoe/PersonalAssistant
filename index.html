@@ -204,11 +204,11 @@
         <div id="statusBadge" class="status-badge">READY</div>
     </div>
 
-    <!-- Voice Selection Bar -->
+    <!-- Voice Selection Bar (Filtered to English Female only) -->
     <div class="voice-config">
-        <label for="voiceSelect">Select Voice:</label>
+        <label for="voiceSelect">Capella Voice:</label>
         <select id="voiceSelect" class="voice-select">
-            <option value="">Loading available voices...</option>
+            <option value="">Loading English female voices...</option>
         </select>
         <button id="testVoiceBtn" class="test-voice-btn">🔊 Test Voice</button>
     </div>
@@ -260,34 +260,60 @@
         statusBadge.style.color = color;
     }
 
-    // --- RELIABLE VOICE LOADING AND POPULATION ---
+    // --- FILTERED VOICE LOADER (English Female Only) ---
     function loadVoices() {
         if (!('speechSynthesis' in window)) return;
 
         const voices = window.speechSynthesis.getVoices();
         if (voices.length === 0) return;
 
+        // Filter for English language and common female profiles or neutral/natural terms
+        const femaleEnglishVoices = voices.filter(v => {
+            if (!v.lang.startsWith('en')) return false;
+            
+            const name = v.name.toLowerCase();
+            // Check for female keywords or known good neural/natural assistants
+            const isFemaleProfile = (
+                name.includes('female') || 
+                name.includes('zira') || 
+                name.includes('jenny') || 
+                name.includes('samantha') || 
+                name.includes('victoria') || 
+                name.includes('karen') || 
+                name.includes('tessa') || 
+                name.includes('aria') || 
+                name.includes('catherine') || 
+                name.includes('susan') || 
+                name.includes('libby') ||
+                name.includes('sonia') ||
+                name.includes('hazel') ||
+                name.includes('natural') || 
+                name.includes('online')
+            );
+            
+            // Exclude explicit male indicators if any slipped through
+            const isExplicitMale = name.includes('david') || name.includes('george') || name.includes('james') || name.includes('mark') || name.includes('ryan') || name.includes('brian');
+
+            return isFemaleProfile && !isExplicitMale;
+        });
+
         const currentlySelectedName = voiceSelect.value;
         voiceSelect.innerHTML = '';
 
-        voices.forEach((voice) => {
+        // If filtering leaves nothing (rare, but possible on strict offline devices), fallback to all English voices
+        const targetVoices = femaleEnglishVoices.length > 0 ? femaleEnglishVoices : voices.filter(v => v.lang.startsWith('en'));
+
+        targetVoices.forEach((voice) => {
             const option = document.createElement('option');
-            // Store unique voice identifier (Name)
             option.value = voice.name;
-            option.textContent = `${voice.name} (${voice.lang})${voice.default ? ' — Default' : ''}`;
+            option.textContent = `${voice.name} (${voice.lang})`;
             voiceSelect.appendChild(option);
         });
 
-        // Keep selection if previously chosen, or auto-pick a natural voice
         if (currentlySelectedName && Array.from(voiceSelect.options).some(o => o.value === currentlySelectedName)) {
             voiceSelect.value = currentlySelectedName;
-        } else {
-            const preferredVoice = voices.find(v => 
-                v.lang.includes('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Zira') || v.name.includes('Jenny') || v.name.includes('Samantha'))
-            );
-            if (preferredVoice) {
-                voiceSelect.value = preferredVoice.name;
-            }
+        } else if (targetVoices.length > 0) {
+            voiceSelect.value = targetVoices[0].name;
         }
     }
 
@@ -296,9 +322,8 @@
         window.speechSynthesis.onvoiceschanged = loadVoices;
     }
 
-    // Test Voice Button
     testVoiceBtn.addEventListener("click", () => {
-        speakText("Hello! This is how I sound as Capella. Ready when you are.");
+        speakText("Hello! This is Capella. All systems are online and functioning normally.");
     });
 
     // Initialize Speech Recognition
@@ -429,7 +454,6 @@
             .trim();
     }
 
-    // --- ACCURATE VOICE SELECTION & MATCHING ---
     function speakText(text) {
         if (!('speechSynthesis' in window)) {
             updateStatus("READY", "#00f2ff");
@@ -438,15 +462,12 @@
 
         isSpeaking = true; 
         updateStatus("SPEAKING...", "#00ff88");
-        
-        // Stop any active audio before starting a new one
         window.speechSynthesis.cancel(); 
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 1.0; 
         utterance.pitch = 1.0; 
 
-        // Fetch fresh voices dynamically
         const freshVoices = window.speechSynthesis.getVoices();
         const selectedVoiceName = voiceSelect.value;
 
@@ -454,7 +475,7 @@
             const matchedVoice = freshVoices.find(v => v.name === selectedVoiceName);
             if (matchedVoice) {
                 utterance.voice = matchedVoice;
-                utterance.lang = matchedVoice.lang; // Force language lock so browser respects choice
+                utterance.lang = matchedVoice.lang;
             }
         }
 
