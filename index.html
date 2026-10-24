@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>J.A.R.V.I.S. Core</title>
+</head>
+<body>
+
+<script>
+    // Configuration
+    const GROQ_API_KEY = "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"; 
+    
+    // System instructions to shape the persona
+    const systemPrompt = {
+        "role": "system", 
+        "content": "You are J.A.R.V.I.S., Tony Stark's witty, polite, and concise AI assistant. Keep responses short and conversational, as they will be spoken out loud."
+    };
+    
+    let conversationHistory = [systemPrompt];
+    let isSpeaking = false; // Flag to prevent Jarvis from listening to his own voice output
+
+    // Initialize Browser Speech Recognition (STT)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        alert("Speech Recognition API is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;      // Keep ears open
+    recognition.interimResults = false; // Only process finalized words
+    recognition.lang = 'en-US';
+
+    // When speech is recognized
+    recognition.onresult = async (event) => {
+        if (isSpeaking) return; // Ignore input while Jarvis is talking back
+
+        const speechResult = event.results[event.results.length - 1][0].transcript.trim();
+        console.log("User said:", speechResult);
+
+        // Append user input to memory
+        conversationHistory.push({ role: "user", content: speechResult });
+
+        // Temporarily stop recognition while querying and speaking
+        recognition.stop();
+
+        // Get response from Groq
+        const jarvisReply = await queryGroqAPI(conversationHistory);
+        console.log("J.A.R.V.I.S.:", jarvisReply);
+
+        // Append assistant response to memory
+        conversationHistory.push({ role: "assistant", content: jarvisReply });
+
+        // Speak the reply out loud
+        speakText(jarvisReply);
+    };
+
+    // Auto-restart ears if the browser decides to close the session due to silence
+    recognition.onend = () => {
+        if (!isSpeaking) {
+            try {
+                recognition.start();
+            } catch (e) {
+                // Ignore if already started
+            }
+        }
+    };
+
+    recognition.onerror = (event) => {
+        console.warn("Speech recognition error:", event.error);
+    };
+
+    // Function to communicate with Groq API (Llama 3.3)
+    async function queryGroqAPI(history) {
+        try {
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${GROQ_API_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: "qwen/qwen3.8-27b",
+                    messages: history,
+                    temperature: 0.7,
+                    max_tokens: 150
+                })
+            });
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        } catch (error) {
+            console.error("Groq API Error:", error);
+            return "Systems are experiencing a minor glitch, sir.";
+        }
+    }
+
+    // Function to handle browser Text-to-Speech (TTS)
+    function speakText(text) {
+        if (!('speechSynthesis' in window)) {
+            restartListening();
+            return;
+        }
+
+        isSpeaking = true; // Lock ears so he doesn't listen to himself
+        window.speechSynthesis.cancel(); // Clear any previous speech queue
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0; 
+        utterance.pitch = 0.9; // Slightly deeper register
+
+        // Select a natural English voice if available on the device
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v => v.lang.includes('en-US') || v.lang.includes('en-GB'));
+        if (preferredVoice) {
+            utterance.voice = preferredVoice;
+        }
+
+        // When Jarvis finishes talking, turn his ears back on
+        utterance.onend = () => {
+            isSpeaking = false;
+            restartListening();
+        };
+
+        utterance.onerror = () => {
+            isSpeaking = false;
+            restartListening();
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function restartListening() {
+        setTimeout(() => {
+            try {
+                recognition.start();
+            } catch (e) {
+                // Safeguard against fast state overlapping
+            }
+        }, 300);
+    }
+
+    // Kickstart listening loop on first user click anywhere on the page
+    window.addEventListener('click', () => {
+        try {
+            recognition.start();
+            console.log("J.A.R.V.I.S. listening systems active.");
+        } catch (e) {
+            // Already running
+        }
+    }, { once: true });
+
+</script>
+
+</body>
+</html>
