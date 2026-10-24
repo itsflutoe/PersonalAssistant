@@ -160,7 +160,7 @@
             <div id="userInputBox" class="output-box">Press the button below to talk...</div>
         </div>
 
-        <!-- J.A.R.V.I.S. Output Box -->
+        <!-- J.A.R.V.I.S. Response Box -->
         <div class="panel">
             <div class="panel-title">J.A.R.V.I.S. Response</div>
             <div id="jarvisOutputBox" class="output-box">Standing by, sir.</div>
@@ -175,18 +175,17 @@
 <script>
     // --- CONFIGURATION ---
     const GROQ_API_KEY = "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"; 
-    const MODEL_NAME = "qwen/qwen3.8-27b"; // Updated target model
+    const MODEL_NAME = "qwen/qwen3.8-27b";
     
     const systemPrompt = {
         "role": "system", 
-        "content": "You are J.A.R.V.I.S., Tony Stark's witty, polite, and highly intelligent AI assistant. Keep responses brief, crisp, and conversational."
+        "content": "You are J.A.R.V.I.S., Tony Stark's witty, polite, and highly intelligent AI assistant. Keep responses brief, crisp, and conversational. Do not use markdown syntax, asterisks, bullet points, or special formatting symbols in your text."
     };
     
     let conversationHistory = [systemPrompt];
     let isListening = false;
     let isSpeaking = false;
 
-    // UI Elements
     const statusBadge = document.getElementById("statusBadge");
     const userInputBox = document.getElementById("userInputBox");
     const jarvisOutputBox = document.getElementById("jarvisOutputBox");
@@ -206,11 +205,10 @@
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = false; // Stops automatically when you finish speaking a phrase
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    // Button click to toggle microphone manually
     micBtn.addEventListener("click", () => {
         if (isSpeaking) {
             window.speechSynthesis.cancel();
@@ -262,12 +260,16 @@
 
             conversationHistory.push({ role: "user", content: speechResult });
 
-            // Send to Groq using Qwen 3.8 27b
-            const jarvisReply = await queryGroqAPI(conversationHistory);
-            jarvisOutputBox.innerText = jarvisReply;
+            const rawReply = await queryGroqAPI(conversationHistory);
+            
+            // Clean markdown symbols for the voice engine
+            const spokenReply = cleanTextForSpeech(rawReply);
 
-            conversationHistory.push({ role: "assistant", content: jarvisReply });
-            speakText(jarvisReply);
+            // Display raw or slightly cleaned reply in the box
+            jarvisOutputBox.innerText = rawReply;
+
+            conversationHistory.push({ role: "assistant", content: rawReply });
+            speakText(spokenReply);
         }
     };
 
@@ -286,13 +288,11 @@
         micBtn.innerText = "🎤 Speak to J.A.R.V.I.S.";
         
         if (event.error !== 'no-speech' && event.error !== 'aborted') {
-            console.warn("Speech error:", event.error);
             userInputBox.innerText = "Microphone error: " + event.error;
         }
         updateStatus("READY", "#00f2ff");
     };
 
-    // Groq API Call
     async function queryGroqAPI(history) {
         try {
             const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -312,18 +312,24 @@
             const data = await response.json();
             
             if (data.error) {
-                console.error("Groq API Return Error:", data.error);
                 return `API Error: ${data.error.message || 'Check your API Key.'}`;
             }
 
             return data.choices[0].message.content;
         } catch (error) {
-            console.error("Groq Network Error:", error);
             return "Unable to connect to Groq servers. Please verify your internet connection or API key.";
         }
     }
 
-    // TTS Output
+    // Strips markdown characters (*, #, _, etc.) so TTS doesn't read them aloud
+    function cleanTextForSpeech(text) {
+        return text
+            .replace(/[*_#`~]/g, '') // Removes markdown symbols
+            .replace(/\[.*?\]/g, '') // Removes bracketed text cues like [smiles]
+            .trim();
+    }
+
+    // J.A.R.V.I.S. Voice Engine Configuration
     function speakText(text) {
         if (!('speechSynthesis' in window)) {
             updateStatus("READY", "#00f2ff");
@@ -335,13 +341,18 @@
         window.speechSynthesis.cancel(); 
 
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0; 
-        utterance.pitch = 0.9; 
+        utterance.rate = 1.02; // Crisp, sharp cadence
+        utterance.pitch = 0.88; // Slightly deeper, more formal register
 
+        // Attempt to find a British English voice for that classic J.A.R.V.I.S. accent
         const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(v => v.lang.includes('en-US') || v.lang.includes('en-GB'));
-        if (preferredVoice) {
-            utterance.voice = preferredVoice;
+        const britishVoice = voices.find(v => v.lang === 'en-GB' || v.name.includes('UK English') || v.name.includes('British'));
+        const fallbackVoice = voices.find(v => v.lang.includes('en-US'));
+
+        if (britishVoice) {
+            utterance.voice = britishVoice;
+        } else if (fallbackVoice) {
+            utterance.voice = fallbackVoice;
         }
 
         utterance.onend = () => {
