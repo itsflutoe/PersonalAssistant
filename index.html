@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>J.A.R.V.I.S. Interface</title>
-    <!-- Favicon fix to eliminate 404 console error -->
+    <title>J.A.R.V.I.S. Systems</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
     <style>
         * {
@@ -26,34 +25,27 @@
 
         .dashboard {
             width: 100%;
-            max-width: 900px;
-            background: rgba(16, 24, 48, 0.8);
+            max-width: 850px;
+            background: rgba(16, 24, 48, 0.85);
             border: 1px solid #00f2ff33;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 0 30px rgba(0, 242, 255, 0.15);
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 0 35px rgba(0, 242, 255, 0.15);
+            display: flex;
+            flex-direction: column;
             gap: 20px;
         }
 
-        @media (max-width: 768px) {
-            .dashboard {
-                grid-template-columns: 1fr;
-            }
-        }
-
         .header {
-            grid-column: 1 / -1;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #00f2ff33;
-            padding-bottom: 12px;
+            padding-bottom: 14px;
         }
 
         .title {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             letter-spacing: 2px;
             text-transform: uppercase;
             font-weight: bold;
@@ -71,26 +63,38 @@
             transition: all 0.3s ease;
         }
 
+        .panels-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 650px) {
+            .panels-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .panel {
             background: rgba(5, 10, 20, 0.6);
             border: 1px solid rgba(0, 242, 255, 0.2);
-            border-radius: 8px;
-            padding: 16px;
+            border-radius: 10px;
+            padding: 18px;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            min-height: 220px;
+            min-height: 200px;
         }
 
         .panel-title {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #8ab4f8;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
         .output-box {
-            font-size: 1rem;
+            font-size: 0.95rem;
             color: #ffffff;
             line-height: 1.5;
             word-break: break-word;
@@ -98,15 +102,46 @@
             overflow-y: auto;
         }
 
-        .instruction-banner {
-            grid-column: 1 / -1;
-            text-align: center;
-            font-size: 0.9rem;
-            color: #00f2ffaa;
-            padding: 10px;
-            background: rgba(0, 242, 255, 0.05);
-            border-radius: 6px;
+        .controls {
+            display: flex;
+            justify-content: center;
+            padding-top: 10px;
+        }
+
+        .mic-button {
+            background: rgba(0, 242, 255, 0.1);
+            border: 2px solid #00f2ff;
+            color: #00f2ff;
+            padding: 16px 36px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            border-radius: 50px;
             cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .mic-button:hover {
+            background: rgba(0, 242, 255, 0.25);
+            box-shadow: 0 0 25px rgba(0, 242, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .mic-button.active {
+            background: #ff0055;
+            border-color: #ff0055;
+            color: #ffffff;
+            box-shadow: 0 0 25px rgba(255, 0, 85, 0.6);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 10px rgba(255, 0, 85, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(255, 0, 85, 0.9); }
+            100% { box-shadow: 0 0 10px rgba(255, 0, 85, 0.5); }
         }
     </style>
 </head>
@@ -114,44 +149,48 @@
 
 <div class="dashboard">
     <div class="header">
-        <div class="title">J.A.R.V.I.S. Systems</div>
-        <div id="statusBadge" class="status-badge">STANDBY</div>
+        <div class="title">J.A.R.V.I.S. Core</div>
+        <div id="statusBadge" class="status-badge">READY</div>
     </div>
 
-    <div class="instruction-banner" id="clickBanner">
-        ▶ Click anywhere to activate microphone listening system
+    <div class="panels-container">
+        <!-- Speech Input Box -->
+        <div class="panel">
+            <div class="panel-title">Your Voice Input</div>
+            <div id="userInputBox" class="output-box">Press the button below to talk...</div>
+        </div>
+
+        <!-- J.A.R.V.I.S. Output Box -->
+        <div class="panel">
+            <div class="panel-title">J.A.R.V.I.S. Response</div>
+            <div id="jarvisOutputBox" class="output-box">Standing by, sir.</div>
+        </div>
     </div>
 
-    <!-- Speech Input Box -->
-    <div class="panel">
-        <div class="panel-title">User Voice Input (STT)</div>
-        <div id="userInputBox" class="output-box">Awaiting speech interaction...</div>
-    </div>
-
-    <!-- J.A.R.V.I.S. Output Box -->
-    <div class="panel">
-        <div class="panel-title">J.A.R.V.I.S. Response</div>
-        <div id="jarvisOutputBox" class="output-box">Systems ready.</div>
+    <div class="controls">
+        <button id="micBtn" class="mic-button">🎤 Speak to J.A.R.V.I.S.</button>
     </div>
 </div>
 
 <script>
-    // Configuration
+    // --- CONFIGURATION ---
     const GROQ_API_KEY = "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"; 
+    const MODEL_NAME = "qwen/qwen3.8-27b"; // Updated target model
     
     const systemPrompt = {
         "role": "system", 
-        "content": "You are J.A.R.V.I.S., Tony Stark's witty, polite, and concise AI assistant. Keep responses short and conversational, as they will be spoken out loud."
+        "content": "You are J.A.R.V.I.S., Tony Stark's witty, polite, and highly intelligent AI assistant. Keep responses brief, crisp, and conversational."
     };
     
     let conversationHistory = [systemPrompt];
-    let isSpeaking = false; 
+    let isListening = false;
+    let isSpeaking = false;
 
     // UI Elements
     const statusBadge = document.getElementById("statusBadge");
     const userInputBox = document.getElementById("userInputBox");
     const jarvisOutputBox = document.getElementById("jarvisOutputBox");
-    const clickBanner = document.getElementById("clickBanner");
+    const micBtn = document.getElementById("micBtn");
 
     function updateStatus(text, color = "#00f2ff") {
         statusBadge.innerText = text;
@@ -163,23 +202,42 @@
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-        alert("Speech Recognition API is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
+        alert("Speech Recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = true;      
-    recognition.interimResults = true; // Show text live as you speak
+    recognition.continuous = false; // Stops automatically when you finish speaking a phrase
+    recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    recognition.onstart = () => {
-        if (!isSpeaking) {
-            updateStatus("LISTENING...", "#00ff88");
+    // Button click to toggle microphone manually
+    micBtn.addEventListener("click", () => {
+        if (isSpeaking) {
+            window.speechSynthesis.cancel();
+            isSpeaking = false;
         }
+
+        if (!isListening) {
+            try {
+                recognition.start();
+            } catch (e) {
+                console.warn("Recognition start issue:", e);
+            }
+        } else {
+            recognition.stop();
+        }
+    });
+
+    recognition.onstart = () => {
+        isListening = true;
+        micBtn.classList.add("active");
+        micBtn.innerText = "🛑 Stop Listening";
+        updateStatus("LISTENING...", "#ff0055");
+        userInputBox.innerText = "Listening to your voice...";
+        userInputBox.style.color = "#ffbb00";
     };
 
     recognition.onresult = async (event) => {
-        if (isSpeaking) return; 
-
         let interimTranscript = '';
         let finalTranscript = '';
 
@@ -191,13 +249,10 @@
             }
         }
 
-        // Show live transcript as you talk
         if (interimTranscript.trim().length > 0) {
             userInputBox.innerText = interimTranscript;
-            userInputBox.style.color = "#8ab4f8";
         }
 
-        // Handle finalized sentence
         if (finalTranscript.trim().length > 0) {
             const speechResult = finalTranscript.trim();
             userInputBox.innerText = `"${speechResult}"`;
@@ -206,8 +261,8 @@
             updateStatus("PROCESSING...", "#ffbb00");
 
             conversationHistory.push({ role: "user", content: speechResult });
-            recognition.stop();
 
+            // Send to Groq using Qwen 3.8 27b
             const jarvisReply = await queryGroqAPI(conversationHistory);
             jarvisOutputBox.innerText = jarvisReply;
 
@@ -217,20 +272,27 @@
     };
 
     recognition.onend = () => {
+        isListening = false;
+        micBtn.classList.remove("active");
+        micBtn.innerText = "🎤 Speak to J.A.R.V.I.S.";
         if (!isSpeaking) {
-            restartListening();
+            updateStatus("READY", "#00f2ff");
         }
     };
 
     recognition.onerror = (event) => {
-        // Handle routine silence timeouts silently without throwing scary errors
-        if (event.error === 'no-speech' || event.error === 'aborted') {
-            restartListening();
-        } else {
-            console.warn("Speech recognition event:", event.error);
+        isListening = false;
+        micBtn.classList.remove("active");
+        micBtn.innerText = "🎤 Speak to J.A.R.V.I.S.";
+        
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            console.warn("Speech error:", event.error);
+            userInputBox.innerText = "Microphone error: " + event.error;
         }
+        updateStatus("READY", "#00f2ff");
     };
 
+    // Groq API Call
     async function queryGroqAPI(history) {
         try {
             const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -240,29 +302,36 @@
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
+                    model: MODEL_NAME,
                     messages: history,
                     temperature: 0.7,
-                    max_tokens: 150
+                    max_completion_tokens: 200
                 })
             });
 
             const data = await response.json();
+            
+            if (data.error) {
+                console.error("Groq API Return Error:", data.error);
+                return `API Error: ${data.error.message || 'Check your API Key.'}`;
+            }
+
             return data.choices[0].message.content;
         } catch (error) {
-            console.error("Groq API Error:", error);
-            return "Systems are experiencing a minor glitch, sir.";
+            console.error("Groq Network Error:", error);
+            return "Unable to connect to Groq servers. Please verify your internet connection or API key.";
         }
     }
 
+    // TTS Output
     function speakText(text) {
         if (!('speechSynthesis' in window)) {
-            restartListening();
+            updateStatus("READY", "#00f2ff");
             return;
         }
 
         isSpeaking = true; 
-        updateStatus("SPEAKING...", "#ff0077");
+        updateStatus("SPEAKING...", "#00ff88");
         window.speechSynthesis.cancel(); 
 
         const utterance = new SpeechSynthesisUtterance(text);
@@ -277,39 +346,16 @@
 
         utterance.onend = () => {
             isSpeaking = false;
-            updateStatus("LISTENING...", "#00ff88");
-            restartListening();
+            updateStatus("READY", "#00f2ff");
         };
 
         utterance.onerror = () => {
             isSpeaking = false;
-            updateStatus("LISTENING...", "#00ff88");
-            restartListening();
+            updateStatus("READY", "#00f2ff");
         };
 
         window.speechSynthesis.speak(utterance);
     }
-
-    function restartListening() {
-        setTimeout(() => {
-            try {
-                recognition.start();
-            } catch (e) {
-                // Ignore overlapping states
-            }
-        }, 300);
-    }
-
-    // Single listener initialization on user interaction
-    window.addEventListener('click', () => {
-        try {
-            recognition.start();
-            clickBanner.style.display = 'none';
-        } catch (e) {
-            // Already running
-        }
-    }, { once: true });
-
 </script>
 
 </body>
