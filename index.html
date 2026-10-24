@@ -2,15 +2,143 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>J.A.R.V.I.S. Core</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S. Interface</title>
+    <!-- Favicon fix to eliminate 404 console error -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #0b0f19;
+            color: #00f2ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard {
+            width: 100%;
+            max-width: 900px;
+            background: rgba(16, 24, 48, 0.8);
+            border: 1px solid #00f2ff33;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.15);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #00f2ff33;
+            padding-bottom: 12px;
+        }
+
+        .title {
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid #00f2ff;
+            color: #00f2ff;
+            transition: all 0.3s ease;
+        }
+
+        .panel {
+            background: rgba(5, 10, 20, 0.6);
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 220px;
+        }
+
+        .panel-title {
+            font-size: 0.85rem;
+            color: #8ab4f8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .output-box {
+            font-size: 1rem;
+            color: #ffffff;
+            line-height: 1.5;
+            word-break: break-word;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .instruction-banner {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #00f2ffaa;
+            padding: 10px;
+            background: rgba(0, 242, 255, 0.05);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
+
+<div class="dashboard">
+    <div class="header">
+        <div class="title">J.A.R.V.I.S. Systems</div>
+        <div id="statusBadge" class="status-badge">STANDBY</div>
+    </div>
+
+    <div class="instruction-banner" id="clickBanner">
+        ▶ Click anywhere to activate microphone listening system
+    </div>
+
+    <!-- Speech Input Box -->
+    <div class="panel">
+        <div class="panel-title">User Voice Input (STT)</div>
+        <div id="userInputBox" class="output-box">Awaiting speech interaction...</div>
+    </div>
+
+    <!-- J.A.R.V.I.S. Output Box -->
+    <div class="panel">
+        <div class="panel-title">J.A.R.V.I.S. Response</div>
+        <div id="jarvisOutputBox" class="output-box">Systems ready.</div>
+    </div>
+</div>
 
 <script>
     // Configuration
     const GROQ_API_KEY = "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"; 
     
-    // System instructions to shape the persona
     const systemPrompt = {
         "role": "system", 
         "content": "You are J.A.R.V.I.S., Tony Stark's witty, polite, and concise AI assistant. Keep responses short and conversational, as they will be spoken out loud."
@@ -19,7 +147,19 @@
     let conversationHistory = [systemPrompt];
     let isSpeaking = false; 
 
-    // Initialize Browser Speech Recognition (STT)
+    // UI Elements
+    const statusBadge = document.getElementById("statusBadge");
+    const userInputBox = document.getElementById("userInputBox");
+    const jarvisOutputBox = document.getElementById("jarvisOutputBox");
+    const clickBanner = document.getElementById("clickBanner");
+
+    function updateStatus(text, color = "#00f2ff") {
+        statusBadge.innerText = text;
+        statusBadge.style.borderColor = color;
+        statusBadge.style.color = color;
+    }
+
+    // Initialize Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
@@ -28,24 +168,52 @@
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;      
-    recognition.interimResults = false; 
+    recognition.interimResults = true; // Show text live as you speak
     recognition.lang = 'en-US';
 
-    // When speech is recognized
+    recognition.onstart = () => {
+        if (!isSpeaking) {
+            updateStatus("LISTENING...", "#00ff88");
+        }
+    };
+
     recognition.onresult = async (event) => {
         if (isSpeaking) return; 
 
-        const speechResult = event.results[event.results.length - 1][0].transcript.trim();
-        console.log("User said:", speechResult);
+        let interimTranscript = '';
+        let finalTranscript = '';
 
-        conversationHistory.push({ role: "user", content: speechResult });
-        recognition.stop();
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+            } else {
+                interimTranscript += event.results[i][0].transcript;
+            }
+        }
 
-        const jarvisReply = await queryGroqAPI(conversationHistory);
-        console.log("J.A.R.V.I.S.:", jarvisReply);
+        // Show live transcript as you talk
+        if (interimTranscript.trim().length > 0) {
+            userInputBox.innerText = interimTranscript;
+            userInputBox.style.color = "#8ab4f8";
+        }
 
-        conversationHistory.push({ role: "assistant", content: jarvisReply });
-        speakText(jarvisReply);
+        // Handle finalized sentence
+        if (finalTranscript.trim().length > 0) {
+            const speechResult = finalTranscript.trim();
+            userInputBox.innerText = `"${speechResult}"`;
+            userInputBox.style.color = "#ffffff";
+            
+            updateStatus("PROCESSING...", "#ffbb00");
+
+            conversationHistory.push({ role: "user", content: speechResult });
+            recognition.stop();
+
+            const jarvisReply = await queryGroqAPI(conversationHistory);
+            jarvisOutputBox.innerText = jarvisReply;
+
+            conversationHistory.push({ role: "assistant", content: jarvisReply });
+            speakText(jarvisReply);
+        }
     };
 
     recognition.onend = () => {
@@ -54,13 +222,12 @@
         }
     };
 
-    // --- FIXED ERROR HANDLER ---
     recognition.onerror = (event) => {
-        console.warn("Speech recognition error:", event.error);
-        
-        // Auto-recover cleanly if the user is just staying quiet
+        // Handle routine silence timeouts silently without throwing scary errors
         if (event.error === 'no-speech' || event.error === 'aborted') {
             restartListening();
+        } else {
+            console.warn("Speech recognition event:", event.error);
         }
     };
 
@@ -95,6 +262,7 @@
         }
 
         isSpeaking = true; 
+        updateStatus("SPEAKING...", "#ff0077");
         window.speechSynthesis.cancel(); 
 
         const utterance = new SpeechSynthesisUtterance(text);
@@ -109,11 +277,13 @@
 
         utterance.onend = () => {
             isSpeaking = false;
+            updateStatus("LISTENING...", "#00ff88");
             restartListening();
         };
 
         utterance.onerror = () => {
             isSpeaking = false;
+            updateStatus("LISTENING...", "#00ff88");
             restartListening();
         };
 
@@ -125,15 +295,16 @@
             try {
                 recognition.start();
             } catch (e) {
-                // Safeguard against overlapping states
+                // Ignore overlapping states
             }
         }, 300);
     }
 
+    // Single listener initialization on user interaction
     window.addEventListener('click', () => {
         try {
             recognition.start();
-            console.log("J.A.R.V.I.S. listening systems active.");
+            clickBanner.style.display = 'none';
         } catch (e) {
             // Already running
         }
