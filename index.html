@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>J.A.R.V.I.S. Systems</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <title>Capella AI Assistant</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
     <style>
         * {
             box-sizing: border-box;
@@ -63,6 +63,54 @@
             transition: all 0.3s ease;
         }
 
+        /* Voice Selector Bar */
+        .voice-config {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: rgba(5, 10, 20, 0.6);
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            padding: 12px 16px;
+            border-radius: 10px;
+        }
+
+        .voice-config label {
+            font-size: 0.85rem;
+            color: #8ab4f8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .voice-select {
+            flex-grow: 1;
+            background: #0b0f19;
+            color: #00f2ff;
+            border: 1px solid #00f2ff55;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .test-voice-btn {
+            background: rgba(0, 242, 255, 0.15);
+            border: 1px solid #00f2ff;
+            color: #00f2ff;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .test-voice-btn:hover {
+            background: rgba(0, 242, 255, 0.3);
+        }
+
         .panels-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -72,6 +120,10 @@
         @media (max-width: 650px) {
             .panels-container {
                 grid-template-columns: 1fr;
+            }
+            .voice-config {
+                flex-direction: column;
+                align-items: stretch;
             }
         }
 
@@ -149,8 +201,17 @@
 
 <div class="dashboard">
     <div class="header">
-        <div class="title">J.A.R.V.I.S. Core</div>
+        <div class="title">Capella AI</div>
         <div id="statusBadge" class="status-badge">READY</div>
+    </div>
+
+    <!-- Voice Selection Bar -->
+    <div class="voice-config">
+        <label for="voiceSelect">Select Voice:</label>
+        <select id="voiceSelect" class="voice-select">
+            <option value="">Loading available voices...</option>
+        </select>
+        <button id="testVoiceBtn" class="test-voice-btn">🔊 Test Voice</button>
     </div>
 
     <div class="panels-container">
@@ -160,15 +221,15 @@
             <div id="userInputBox" class="output-box">Press the button below to talk...</div>
         </div>
 
-        <!-- J.A.R.V.I.S. Response Box -->
+        <!-- Capella Output Box -->
         <div class="panel">
-            <div class="panel-title">J.A.R.V.I.S. Response</div>
-            <div id="jarvisOutputBox" class="output-box">Standing by, sir.</div>
+            <div class="panel-title">Capella Response</div>
+            <div id="jarvisOutputBox" class="output-box">Hello! I am Capella. How can I help you today?</div>
         </div>
     </div>
 
     <div class="controls">
-        <button id="micBtn" class="mic-button">🎤 Speak to J.A.R.V.I.S.</button>
+        <button id="micBtn" class="mic-button">🎤 Speak to Capella</button>
     </div>
 </div>
 
@@ -179,23 +240,65 @@
     
     const systemPrompt = {
         "role": "system", 
-        "content": "You are J.A.R.V.I.S., Tony Stark's witty, polite, and highly intelligent AI assistant. Keep responses brief, crisp, and conversational. Do not use markdown syntax, asterisks, bullet points, or special formatting symbols in your text."
+        "content": "You are Capella, a warm, friendly, polite, and highly articulate AI companion. Keep your responses brief, pleasant, and natural. Do not use markdown syntax, asterisks, bullet points, or special formatting symbols."
     };
     
     let conversationHistory = [systemPrompt];
     let isListening = false;
     let isSpeaking = false;
+    let availableVoices = [];
 
+    // UI Elements
     const statusBadge = document.getElementById("statusBadge");
     const userInputBox = document.getElementById("userInputBox");
     const jarvisOutputBox = document.getElementById("jarvisOutputBox");
     const micBtn = document.getElementById("micBtn");
+    const voiceSelect = document.getElementById("voiceSelect");
+    const testVoiceBtn = document.getElementById("testVoiceBtn");
 
     function updateStatus(text, color = "#00f2ff") {
         statusBadge.innerText = text;
         statusBadge.style.borderColor = color;
         statusBadge.style.color = color;
     }
+
+    // --- POPULATE VOICE DROPDOWN ---
+    function loadVoices() {
+        if (!('speechSynthesis' in window)) return;
+
+        availableVoices = window.speechSynthesis.getVoices();
+        
+        if (availableVoices.length === 0) return;
+
+        voiceSelect.innerHTML = '';
+
+        availableVoices.forEach((voice, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = `${voice.name} (${voice.lang})${voice.default ? ' — Default' : ''}`;
+            voiceSelect.appendChild(option);
+        });
+
+        // Try selecting a natural English/US/Female voice by default if available
+        const preferredIndex = availableVoices.findIndex(v => 
+            (v.lang.includes('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Zira') || v.name.includes('Jenny') || v.name.includes('Samantha')))
+        );
+
+        if (preferredIndex !== -1) {
+            voiceSelect.value = preferredIndex;
+        }
+    }
+
+    // Handle asynchronous voice loading across different browsers
+    if ('speechSynthesis' in window) {
+        loadVoices();
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    // Test Voice Button
+    testVoiceBtn.addEventListener("click", () => {
+        speakText("Hello! This is how I sound as Capella. Ready when you are.");
+    });
 
     // Initialize Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -261,11 +364,8 @@
             conversationHistory.push({ role: "user", content: speechResult });
 
             const rawReply = await queryGroqAPI(conversationHistory);
-            
-            // Clean markdown symbols for the voice engine
             const spokenReply = cleanTextForSpeech(rawReply);
 
-            // Display raw or slightly cleaned reply in the box
             jarvisOutputBox.innerText = rawReply;
 
             conversationHistory.push({ role: "assistant", content: rawReply });
@@ -276,7 +376,7 @@
     recognition.onend = () => {
         isListening = false;
         micBtn.classList.remove("active");
-        micBtn.innerText = "🎤 Speak to J.A.R.V.I.S.";
+        micBtn.innerText = "🎤 Speak to Capella";
         if (!isSpeaking) {
             updateStatus("READY", "#00f2ff");
         }
@@ -285,7 +385,7 @@
     recognition.onerror = (event) => {
         isListening = false;
         micBtn.classList.remove("active");
-        micBtn.innerText = "🎤 Speak to J.A.R.V.I.S.";
+        micBtn.innerText = "🎤 Speak to Capella";
         
         if (event.error !== 'no-speech' && event.error !== 'aborted') {
             userInputBox.innerText = "Microphone error: " + event.error;
@@ -321,15 +421,13 @@
         }
     }
 
-    // Strips markdown characters (*, #, _, etc.) so TTS doesn't read them aloud
     function cleanTextForSpeech(text) {
         return text
-            .replace(/[*_#`~]/g, '') // Removes markdown symbols
-            .replace(/\[.*?\]/g, '') // Removes bracketed text cues like [smiles]
+            .replace(/[*_#`~]/g, '')
+            .replace(/\[.*?\]/g, '')
             .trim();
     }
 
-    // J.A.R.V.I.S. Voice Engine Configuration
     function speakText(text) {
         if (!('speechSynthesis' in window)) {
             updateStatus("READY", "#00f2ff");
@@ -341,18 +439,13 @@
         window.speechSynthesis.cancel(); 
 
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.02; // Crisp, sharp cadence
-        utterance.pitch = 0.88; // Slightly deeper, more formal register
+        utterance.rate = 1.0; 
+        utterance.pitch = 1.0; 
 
-        // Attempt to find a British English voice for that classic J.A.R.V.I.S. accent
-        const voices = window.speechSynthesis.getVoices();
-        const britishVoice = voices.find(v => v.lang === 'en-GB' || v.name.includes('UK English') || v.name.includes('British'));
-        const fallbackVoice = voices.find(v => v.lang.includes('en-US'));
-
-        if (britishVoice) {
-            utterance.voice = britishVoice;
-        } else if (fallbackVoice) {
-            utterance.voice = fallbackVoice;
+        // Apply selected voice from dropdown
+        const selectedIndex = voiceSelect.value;
+        if (selectedIndex !== "" && availableVoices[selectedIndex]) {
+            utterance.voice = availableVoices[selectedIndex];
         }
 
         utterance.onend = () => {
