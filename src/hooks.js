@@ -1,47 +1,37 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 
-export function useClock() {
-  const [time, setTime] = useState(() => new Date())
+// Landscape/laptop: scale the fixed stage to fit the window (aspect kept).
+// Portrait phones: fill width and allow vertical scroll of the stage.
+export function useStageScale(designW = 1440, designH = 900) {
+  const [scale, setScale] = useState(1)
+  const [mode, setMode] = useState('fit') // 'fit' | 'scroll'
+
   useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
-  return time
+    const update = () => {
+      const w = window.innerWidth
+      const h = window.innerHeight
+      const isPortrait = h > w
+      if (isPortrait) {
+        setMode('scroll')
+        setScale(w / designW)
+      } else {
+        setMode('fit')
+        setScale(Math.min(w / designW, h / designH))
+      }
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [designW, designH])
+
+  return { scale, mode }
 }
 
-export function useSpeechRecognition({ onResult, onStart, onEnd, onError } = {}) {
-  const [listening, setListening] = useState(false)
-  const recRef = useRef(null)
-
+export function useClock() {
+  const [now, setNow] = useState(() => new Date())
   useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SR) return
-    const rec = new SR()
-    rec.continuous = false
-    rec.interimResults = false
-    rec.lang = 'en-US'
-    rec.onstart = () => { setListening(true); onStart?.() }
-    rec.onend = () => { setListening(false); onEnd?.() }
-    rec.onerror = (e) => { setListening(false); onError?.(e) }
-    rec.onresult = (e) => {
-      const text = e.results[0]?.[0]?.transcript
-      if (text) onResult?.(text)
-    }
-    recRef.current = rec
-    return () => { try { rec.abort() } catch {} }
-  }, [onResult, onStart, onEnd, onError])
-
-  const start = useCallback(() => {
-    try { recRef.current?.start() } catch {}
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
   }, [])
-  const stop = useCallback(() => {
-    try { recRef.current?.stop() } catch {}
-  }, [])
-
-  return {
-    listening,
-    start,
-    stop,
-    supported: !!(window.SpeechRecognition || window.webkitSpeechRecognition)
-  }
+  return now
 }
