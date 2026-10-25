@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -315,6 +316,313 @@
         }
 
         /* ==========================================================================
+           5. CENTER PANEL: HOLOGRAPHIC 3D PARTICLE ORB CANVAS
+           ========================================================================== */
+        .center-panel {
+            grid-area: center-core;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        #visualizerCanvas {
+            width: 100%;
+            height: 100%;
+            max-width: 550px;
+            max-height: 550px;
+            filter: drop-shadow(0 0 30px rgba(0, 242, 255, 0.25));
+        }
+
+        .core-caption {
+            position: absolute;
+            bottom: 24px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            text-align: center;
+            background: rgba(3, 10, 24, 0.85);
+            padding: 6px 20px;
+            border-radius: 20px;
+            border: 1px solid var(--panel-border);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* ==========================================================================
+           6. RIGHT PANEL: TEXT TERMINAL (CONVERSATION LOG)
+           ========================================================================== */
+        .right-panel {
+            grid-area: right-hud;
+        }
+
+        .terminal-log {
+            flex-grow: 1;
+            padding: 14px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            font-size: 0.85rem;
+            scroll-behavior: smooth;
+        }
+
+        .log-entry {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .log-entry.user {
+            align-items: flex-end;
+        }
+
+        .log-entry.assistant {
+            align-items: flex-start;
+        }
+
+        .entry-header {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            display: flex;
+            gap: 6px;
+        }
+
+        .entry-bubble {
+            padding: 10px 14px;
+            border-radius: 8px;
+            max-width: 90%;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+
+        .log-entry.user .entry-bubble {
+            background: rgba(0, 102, 255, 0.18);
+            border: 1px solid rgba(0, 102, 255, 0.45);
+            color: #ffffff;
+            border-bottom-right-radius: 2px;
+        }
+
+        .log-entry.assistant .entry-bubble {
+            background: rgba(0, 242, 255, 0.08);
+            border: 1px solid rgba(0, 242, 255, 0.35);
+            color: var(--text-primary);
+            border-bottom-left-radius: 2px;
+            box-shadow: inset 0 0 10px rgba(0, 242, 255, 0.05);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--panel-border);
+            border-radius: 3px;
+        }
+
+        /* ==========================================================================
+           7. BOTTOM PANEL: COMMAND BAR INPUT TERMINAL
+           ========================================================================== */
+        .bottom-panel {
+            grid-area: bottom-hud;
+            padding: 10px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(3, 9, 22, 0.95);
+            border: 1px solid var(--neon-cyan);
+            box-shadow: 0 0 25px rgba(0, 242, 255, 0.15);
+        }
+
+        .prompt-symbol {
+            color: var(--neon-cyan);
+            font-family: var(--font-code);
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-shadow: var(--glow-cyan);
+        }
+
+        .command-input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #ffffff;
+            font-family: var(--font-code);
+            font-size: 0.95rem;
+            letter-spacing: 0.5px;
+        }
+
+        .command-input::placeholder {
+            color: rgba(80, 120, 160, 0.6);
+        }
+
+        .hud-btn {
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .hud-btn:hover {
+            background: rgba(0, 242, 255, 0.25);
+            box-shadow: var(--glow-cyan);
+            transform: translateY(-1px);
+        }
+
+        .mic-btn {
+            background: rgba(255, 0, 119, 0.12);
+            border: 1px solid var(--neon-magenta);
+            color: var(--neon-magenta);
+        }
+
+        .mic-btn:hover {
+            background: rgba(255, 0, 119, 0.3);
+            box-shadow: var(--glow-magenta);
+        }
+
+        .mic-btn.active {
+            background: var(--neon-magenta);
+            color: #ffffff;
+            box-shadow: var(--glow-magenta);
+            animation: pulse-mic 1.2s infinite;
+        }
+
+        @keyframes pulse-mic {
+            0% { box-shadow: 0 0 10px rgba(255, 0, 119, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(255, 0, 119, 0.95); }
+            100% { box-shadow: 0 0 10px rgba(255, 0, 119, 0.6); }
+        }
+
+        /* RESPONSIVE LAYOUT BREAKPOINTS */
+        @media (max-width: 992px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 280px 240px 1fr auto;
+                grid-template-areas:
+                    "center-core"
+                    "left-hud"
+                    "right-hud"
+                    "bottom-hud";
+                overflow-y: auto;
+                height: auto;
+            }
+            body {
+                overflow-y: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-core-glow"></div>
+
+    <!-- TOP HEADER HUD -->
+    <header class="header-hud">
+        <div class="brand-section">
+            <div class="brand-title">
+                <i class="fa-solid fa-atom"></i> FLUX
+            </div>
+            <span class="brand-version">OS TERMINAL v3.8</span>
+        </div>
+
+        <div class="telemetry-badges">
+            <div class="hud-badge">
+                <i class="fa-solid fa-clock"></i> <span id="hudTime">--:--:--</span>
+            </div>
+            <div class="hud-badge">
+                <i class="fa-solid fa-wifi"></i> <span id="hudPing">24ms</span>
+            </div>
+            <div class="hud-badge">
+                <i class="fa-solid fa-microphone-lines"></i> <span>EN-AU ACTIVE</span>
+            </div>
+            <div id="statusBadge" class="hud-badge status-pill">
+                <div class="status-dot"></div>
+                <span id="statusText">FLUX ACTIVE // STANDBY</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN TERMINAL GRID -->
+    <main class="main-container">
+        
+        <!-- LEFT PANEL: SYSTEM DIAGNOSTICS & TELEMETRY -->
+        <section class="hud-panel left-panel">
+            <div class="panel-header">
+                <span><i class="fa-solid fa-chart-line"></i> System Diagnostics</span>
+                <span style="font-size: 0.65rem;">SYS_OK</span>
+            </div>
+
+            <div class="telemetry-card">
+                <div class="card-title">
+                    <span>COGNITIVE LOAD</span>
+                    <span id="cogLoadVal">14%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div id="cogLoadBar" class="progress-bar-fill" style="width: 14%;"></div>
+                </div>
+            </div>
+
+            <div class="telemetry-card">
+                <div class="card-title">
+                    <span>NETWORK TELEMETRY</span>
+                    <span style="color: var(--neon-green);">STABLE</span>
+                </div>
+                <canvas id="telemetryCanvas" class="telemetry-graph"></canvas>
+            </div>
+
+            <div class="telemetry-card">
+                <div class="card-title">
+                    <span>ACTIVE MODEL</span>
+                    <span style="color: var(--neon-cyan);">Groq Cloud</span>
+                </div>
+                <div class="card-value" style="font-size: 0.85rem;">
+                    qwen/qwen3.8-27b
+                </div>
+            </div>
+
+            <div class="telemetry-card">
+                <div class="card-title">
+                    <span>TASK QUEUE</span>
+                    <span style="color: var(--neon-cyan);">IDLE</span>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-dim); line-height: 1.4;">
+                    • Voice Pipeline: en-AU Ready<br>
+                    • STT Engine: WebSpeech (en-AU)<br>
+                    • Visualizer: 3D Particle Orb
+                </div>
+            </div>
+
+            <!-- API Key Input Config Bar -->
+            <div class="api-key-config">
+                <label for="apiKeyInput"><i class="fa-solid fa-key"></i> Groq API Key</label>
+                <input type="password" id="apiKeyInput" class="ap=====================================================================
            5. CENTER PANEL: HOLOGRAPHIC 3D PARTICLE ORB CANVAS
            ========================================================================== */
         .center-panel {
