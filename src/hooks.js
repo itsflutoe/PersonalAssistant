@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 
 export function useClock() {
   const [time, setTime] = useState(() => new Date())
@@ -9,7 +9,7 @@ export function useClock() {
   return time
 }
 
-export function useSpeechRecognition({ onResult, onStart, onEnd, onError }) {
+export function useSpeechRecognition({ onResult, onStart, onEnd, onError } = {}) {
   const [listening, setListening] = useState(false)
   const recRef = useRef(null)
 
@@ -24,10 +24,11 @@ export function useSpeechRecognition({ onResult, onStart, onEnd, onError }) {
     rec.onend = () => { setListening(false); onEnd?.() }
     rec.onerror = (e) => { setListening(false); onError?.(e) }
     rec.onresult = (e) => {
-      const text = e.results[0][0].transcript
-      onResult?.(text)
+      const text = e.results[0]?.[0]?.transcript
+      if (text) onResult?.(text)
     }
     recRef.current = rec
+    return () => { try { rec.abort() } catch {} }
   }, [onResult, onStart, onEnd, onError])
 
   const start = useCallback(() => {
@@ -37,8 +38,10 @@ export function useSpeechRecognition({ onResult, onStart, onEnd, onError }) {
     try { recRef.current?.stop() } catch {}
   }, [])
 
-  return { listening, start, stop, supported: !!(window.SpeechRecognition || window.webkitSpeechRecognition) }
+  return {
+    listening,
+    start,
+    stop,
+    supported: !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+  }
 }
-
-// fix missing import
-import { useRef } from 'react'
