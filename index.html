@@ -3,1442 +3,540 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FLUX // OS TERMINAL v3.8</title>
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>FLUX // Personal AI Assistant</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💠</text></svg>">
     <style>
-        /* ==========================================================================
-           1. CORE COLOR PALETTE & CYBERPUNK HUD DESIGN SYSTEM
-           ========================================================================== */
-        :root {
-            --bg-dark: #030611;
-            --panel-bg: rgba(5, 12, 26, 0.72);
-            --panel-border: rgba(0, 242, 255, 0.28);
-            --neon-cyan: #00f2ff;
-            --neon-blue: #0066ff;
-            --neon-magenta: #ff0077;
-            --neon-purple: #7000ff;
-            --neon-green: #00ff88;
-            --neon-amber: #ffaa00;
-            --text-primary: #e1f8ff;
-            --text-dim: #5078a0;
-            --glow-cyan: 0 0 15px rgba(0, 242, 255, 0.45);
-            --glow-magenta: 0 0 15px rgba(255, 0, 119, 0.45);
-            --font-tech: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            --font-code: 'Courier New', Courier, monospace;
-        }
-
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            user-select: none;
+            font-family: 'Courier New', Courier, monospace;
         }
 
         body {
-            background-color: var(--bg-dark);
-            color: var(--text-primary);
-            font-family: var(--font-tech);
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
+            background-color: #030712;
+            color: #00f2ff;
             display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-
-        /* Scanline Overlay for Cyberpunk Hologram CRT HUD */
-        body::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.28) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
-            z-index: 100;
-            background-size: 100% 3px, 6px 100%;
-            pointer-events: none;
-            opacity: 0.85;
-        }
-
-        /* Ambient Center Glow */
-        .ambient-core-glow {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 700px;
-            height: 700px;
-            background: radial-gradient(circle, rgba(0, 242, 255, 0.08) 0%, rgba(112, 0, 255, 0.05) 50%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        /* ==========================================================================
-           2. TOP NAVIGATION HEADER
-           ========================================================================== */
-        .header-hud {
-            display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            padding: 10px 24px;
-            border-bottom: 1px solid var(--panel-border);
-            background: rgba(3, 8, 20, 0.9);
-            backdrop-filter: blur(12px);
-            z-index: 10;
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
         }
 
-        .brand-section {
-            display: flex;
-            align-items: center;
+        .dashboard {
+            width: 100%;
+            max-width: 1300px;
+            height: 94vh;
+            max-height: 850px;
+            background: rgba(10, 15, 30, 0.9);
+            border: 1px solid #00f2ff55;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.15), inset 0 0 20px rgba(0, 242, 255, 0.05);
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            grid-template-columns: 280px 1fr 320px;
             gap: 12px;
         }
 
-        .brand-title {
-            font-size: 1.35rem;
-            font-weight: 900;
-            letter-spacing: 3px;
-            color: var(--neon-cyan);
-            text-shadow: var(--glow-cyan);
+        @media (max-width: 1024px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto;
+                height: auto;
+                max-height: none;
+            }
+            body {
+                align-items: flex-start;
+                padding: 5px;
+            }
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
             display: flex;
+            justify-content: space-between;
             align-items: center;
+            border-bottom: 1px solid #00f2ff44;
+            padding-bottom: 8px;
+        }
+
+        .title {
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            font-weight: bold;
+            color: #00f2ff;
+            text-shadow: 0 0 8px rgba(0, 242, 255, 0.6);
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid #00f2ff;
+            color: #00f2ff;
+        }
+
+        /* Panels Container */
+        .panel {
+            background: rgba(3, 7, 18, 0.7);
+            border: 1px solid #00f2ff33;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+        }
+
+        .panel-title {
+            font-size: 0.75rem;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-bottom: 1px dashed #00f2ff33;
+            padding-bottom: 4px;
+        }
+
+        /* Left Side: System Features / Diagnostics */
+        .left-panel {
+            grid-row: 2 / 3;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            display: flex;
+            flex-direction: column;
             gap: 10px;
         }
 
-        .brand-version {
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            letter-spacing: 1px;
-            border: 1px solid var(--panel-border);
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-
-        .telemetry-badges {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .hud-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.75rem;
-            letter-spacing: 1.5px;
-            padding: 5px 14px;
-            border-radius: 20px;
-            background: rgba(0, 242, 255, 0.05);
-            border: 1px solid var(--panel-border);
-            color: var(--neon-cyan);
-        }
-
-        .status-pill {
-            border-color: var(--neon-cyan);
-            box-shadow: var(--glow-cyan);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: var(--neon-cyan);
-            box-shadow: var(--glow-cyan);
-            animation: pulse-dot 1.5s infinite;
-        }
-
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.3; transform: scale(0.85); }
-        }
-
-        /* ==========================================================================
-           3. MAIN HUD LAYOUT GRID
-           ========================================================================== */
-        .main-container {
-            display: grid;
-            grid-template-columns: 340px 1fr 400px;
-            grid-template-rows: 1fr auto;
-            grid-template-areas:
-                "left-hud center-core right-hud"
-                "bottom-hud bottom-hud bottom-hud";
-            flex-grow: 1;
-            padding: 16px;
-            gap: 16px;
-            height: calc(100vh - 58px);
-            z-index: 5;
-            position: relative;
-        }
-
-        /* Glassmorphism Panel Frame */
-        .hud-panel {
-            background: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            border-radius: 12px;
-            backdrop-filter: blur(16px);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-shadow: inset 0 0 20px rgba(0, 242, 255, 0.04);
-            position: relative;
-        }
-
-        /* Sci-Fi Decorative Corner Accents */
-        .hud-panel::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0;
-            width: 12px; height: 12px;
-            border-top: 2px solid var(--neon-cyan);
-            border-left: 2px solid var(--neon-cyan);
-        }
-        .hud-panel::after {
-            content: "";
-            position: absolute;
-            bottom: 0; right: 0;
-            width: 12px; height: 12px;
-            border-bottom: 2px solid var(--neon-cyan);
-            border-right: 2px solid var(--neon-cyan);
-        }
-
-        .panel-header {
-            padding: 10px 16px;
-            border-bottom: 1px solid rgba(0, 242, 255, 0.15);
-            font-size: 0.75rem;
-            font-weight: 800;
-            letter-spacing: 2px;
-            color: var(--text-dim);
-            text-transform: uppercase;
+        .metric-row {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            background: rgba(0, 242, 255, 0.03);
+            font-size: 0.75rem;
         }
 
-        .panel-header i {
-            color: var(--neon-cyan);
+        .metric-val {
+            color: #00f2ff;
         }
 
-        /* ==========================================================================
-           4. LEFT PANEL: SYSTEM DIAGNOSTICS & TELEMETRY
-           ========================================================================== */
-        .left-panel {
-            grid-area: left-hud;
-            gap: 12px;
-            padding: 12px;
-            overflow-y: auto;
-        }
-
-        .telemetry-card {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(0, 242, 255, 0.12);
-            border-radius: 8px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .card-title {
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            letter-spacing: 1.5px;
-            display: flex;
-            justify-content: space-between;
-            text-transform: uppercase;
-        }
-
-        .card-value {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: var(--neon-cyan);
-            font-family: var(--font-code);
-            text-shadow: var(--glow-cyan);
-        }
-
-        .progress-bar-bg {
-            height: 6px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 3px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
-            width: 35%;
-            transition: width 0.4s ease;
-            box-shadow: var(--glow-cyan);
-        }
-
-        /* Mini Canvas Waveform Graph */
-        .telemetry-graph {
-            width: 100%;
-            height: 42px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 4px;
-            border: 1px solid rgba(0, 242, 255, 0.08);
-        }
-
-        .api-key-config {
-            margin-top: auto;
-            background: rgba(0, 242, 255, 0.03);
-            border: 1px solid rgba(0, 242, 255, 0.2);
-            border-radius: 8px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .api-key-config label {
-            font-size: 0.68rem;
-            color: var(--text-dim);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .api-key-input {
-            background: rgba(0, 0, 0, 0.6);
-            border: 1px solid var(--panel-border);
-            color: var(--neon-cyan);
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            outline: none;
-            font-family: var(--font-code);
-        }
-
-        .api-key-input:focus {
-            border-color: var(--neon-cyan);
-            box-shadow: var(--glow-cyan);
-        }
-
-        /* ==========================================================================
-           5. CENTER PANEL: HOLOGRAPHIC 3D PARTICLE ORB CANVAS
-           ========================================================================== */
+        /* Center: Visual Holographic Orb */
         .center-panel {
-            grid-area: center-core;
+            grid-row: 2 / 3;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             position: relative;
-            background: transparent;
-            border: none;
-            box-shadow: none;
+            background: radial-gradient(circle, rgba(0,242,255,0.05) 0%, rgba(3,7,18,0.8) 80%);
         }
 
-        #visualizerCanvas {
+        #holoCanvas {
             width: 100%;
             height: 100%;
-            max-width: 550px;
-            max-height: 550px;
-            filter: drop-shadow(0 0 30px rgba(0, 242, 255, 0.25));
+            max-height: 320px;
         }
 
-        .core-caption {
-            position: absolute;
-            bottom: 24px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            color: var(--neon-cyan);
-            text-transform: uppercase;
-            text-align: center;
-            background: rgba(3, 10, 24, 0.85);
-            padding: 6px 20px;
-            border-radius: 20px;
-            border: 1px solid var(--panel-border);
-            box-shadow: var(--glow-cyan);
-        }
-
-        /* ==========================================================================
-           6. RIGHT PANEL: TEXT TERMINAL (CONVERSATION LOG)
-           ========================================================================== */
+        /* Upper Right: Text Terminal Log */
         .right-panel {
-            grid-area: right-hud;
+            grid-row: 2 / 3;
+            display: flex;
+            flex-direction: column;
         }
 
-        .terminal-log {
+        .chat-log {
             flex-grow: 1;
-            padding: 14px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            font-size: 0.85rem;
-            scroll-behavior: smooth;
+            gap: 8px;
+            font-size: 0.8rem;
+            padding-right: 4px;
+            max-height: 320px;
         }
 
-        .log-entry {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .log-entry.user {
-            align-items: flex-end;
-        }
-
-        .log-entry.assistant {
-            align-items: flex-start;
-        }
-
-        .entry-header {
-            font-size: 0.65rem;
-            color: var(--text-dim);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            display: flex;
-            gap: 6px;
-        }
-
-        .entry-bubble {
-            padding: 10px 14px;
-            border-radius: 8px;
-            max-width: 90%;
-            line-height: 1.45;
+        .msg {
+            padding: 6px 8px;
+            border-radius: 4px;
+            line-height: 1.3;
             word-break: break-word;
         }
 
-        .log-entry.user .entry-bubble {
-            background: rgba(0, 102, 255, 0.18);
-            border: 1px solid rgba(0, 102, 255, 0.45);
-            color: #ffffff;
-            border-bottom-right-radius: 2px;
-        }
-
-        .log-entry.assistant .entry-bubble {
+        .msg.user {
             background: rgba(0, 242, 255, 0.08);
-            border: 1px solid rgba(0, 242, 255, 0.35);
-            color: var(--text-primary);
-            border-bottom-left-radius: 2px;
-            box-shadow: inset 0 0 10px rgba(0, 242, 255, 0.05);
+            border-left: 2px solid #00f2ff;
+            color: #e2e8f0;
+            align-self: flex-end;
+            width: 90%;
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 5px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--panel-border);
-            border-radius: 3px;
+        .msg.ai {
+            background: rgba(56, 189, 248, 0.08);
+            border-left: 2px solid #38bdf8;
+            color: #38bdf8;
+            align-self: flex-start;
+            width: 90%;
         }
 
-        /* ==========================================================================
-           7. BOTTOM PANEL: COMMAND BAR INPUT TERMINAL
-           ========================================================================== */
-        .bottom-panel {
-            grid-area: bottom-hud;
-            padding: 10px 18px;
+        .msg-sender {
+            font-size: 0.65rem;
+            opacity: 0.7;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Bottom: Terminal Input & Mic Controls */
+        .bottom-bar {
+            grid-column: 1 / -1;
             display: flex;
+            gap: 10px;
             align-items: center;
-            gap: 12px;
-            background: rgba(3, 9, 22, 0.95);
-            border: 1px solid var(--neon-cyan);
-            box-shadow: 0 0 25px rgba(0, 242, 255, 0.15);
+            background: rgba(3, 7, 18, 0.8);
+            border: 1px solid #00f2ff44;
+            padding: 10px;
+            border-radius: 8px;
         }
 
-        .prompt-symbol {
-            color: var(--neon-cyan);
-            font-family: var(--font-code);
-            font-size: 1.1rem;
-            font-weight: bold;
-            text-shadow: var(--glow-cyan);
-        }
-
-        .command-input {
+        .terminal-input {
             flex-grow: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: #ffffff;
-            font-family: var(--font-code);
-            font-size: 0.95rem;
-            letter-spacing: 0.5px;
-        }
-
-        .command-input::placeholder {
-            color: rgba(80, 120, 160, 0.6);
-        }
-
-        .hud-btn {
-            background: rgba(0, 242, 255, 0.1);
-            border: 1px solid var(--neon-cyan);
-            color: var(--neon-cyan);
-            padding: 10px 18px;
+            background: #020617;
+            border: 1px solid #00f2ff55;
+            color: #00f2ff;
+            padding: 10px 14px;
             border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .terminal-input:focus {
+            border-color: #00f2ff;
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+        }
+
+        .action-btn {
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid #00f2ff;
+            color: #00f2ff;
+            padding: 10px 20px;
             font-size: 0.85rem;
             font-weight: bold;
-            cursor: pointer;
             letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            text-transform: uppercase;
+            border-radius: 6px;
+            cursor: pointer;
             transition: all 0.2s ease;
             white-space: nowrap;
         }
 
-        .hud-btn:hover {
+        .action-btn:hover {
             background: rgba(0, 242, 255, 0.25);
-            box-shadow: var(--glow-cyan);
-            transform: translateY(-1px);
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
         }
 
-        .mic-btn {
-            background: rgba(255, 0, 119, 0.12);
-            border: 1px solid var(--neon-magenta);
-            color: var(--neon-magenta);
-        }
-
-        .mic-btn:hover {
-            background: rgba(255, 0, 119, 0.3);
-            box-shadow: var(--glow-magenta);
-        }
-
-        .mic-btn.active {
-            background: var(--neon-magenta);
+        .action-btn.active {
+            background: #ff0055;
+            border-color: #ff0055;
             color: #ffffff;
-            box-shadow: var(--glow-magenta);
-            animation: pulse-mic 1.2s infinite;
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
         }
 
-        @keyframes pulse-mic {
-            0% { box-shadow: 0 0 10px rgba(255, 0, 119, 0.6); }
-            50% { box-shadow: 0 0 30px rgba(255, 0, 119, 0.95); }
-            100% { box-shadow: 0 0 10px rgba(255, 0, 119, 0.6); }
-        }
-
-        /* RESPONSIVE LAYOUT BREAKPOINTS */
-        @media (max-width: 992px) {
-            .main-container {
-                grid-template-columns: 1fr;
-                grid-template-rows: 280px 240px 1fr auto;
-                grid-template-areas:
-                    "center-core"
-                    "left-hud"
-                    "right-hud"
-                    "bottom-hud";
-                overflow-y: auto;
-                height: auto;
+        @media (max-width: 768px) {
+            .bottom-bar {
+                flex-direction: column;
             }
-            body {
-                overflow-y: auto;
+            .action-btn {
+                width: 100%;
             }
         }
     </style>
 </head>
 <body>
 
-    <div class="ambient-core-glow"></div>
+<div class="dashboard">
+    <!-- Header -->
+    <div class="header">
+        <div class="title">FLUX // OS v3.8</div>
+        <div id="statusBadge" class="status-badge">SYSTEM READY</div>
+    </div>
 
-    <!-- TOP HEADER HUD -->
-    <header class="header-hud">
-        <div class="brand-section">
-            <div class="brand-title">
-                <i class="fa-solid fa-atom"></i> FLUX
+    <!-- Left Panel: Diagnostics & Features -->
+    <div class="panel left-panel">
+        <div class="panel-title">System Diagnostics</div>
+        <div class="metric-row"><span>CORE STATUS:</span> <span class="metric-val">ONLINE</span></div>
+        <div class="metric-row"><span>MODEL:</span> <span class="metric-val">QWEN-27B</span></div>
+        <div class="metric-row"><span>VOICE LOCALE:</span> <span class="metric-val">en-AU [DEF]</span></div>
+        <div class="metric-row"><span>SYNTHESIS:</span> <span class="metric-val">NEURAL</span></div>
+        <div class="panel-title" style="margin-top: 10px;">Active Modules</div>
+        <div class="metric-row"><span>HUD TELEMETRY:</span> <span class="metric-val">ACTIVE</span></div>
+        <div class="metric-row"><span>AUDIO STREAM:</span> <span class="metric-val">STANDBY</span></div>
+        <div class="metric-row"><span>SEC_LEVEL:</span> <span class="metric-val">ALPHA</span></div>
+    </div>
+
+    <!-- Center Panel: Holographic Visualizer Orb -->
+    <div class="panel center-panel">
+        <div class="panel-title" style="position: absolute; top: 12px; left: 12px; width: calc(100% - 24px);">Holographic Core</div>
+        <canvas id="holoCanvas"></canvas>
+    </div>
+
+    <!-- Upper Right Panel: Text Terminal Log -->
+    <div class="panel right-panel">
+        <div class="panel-title">Text Terminal Log</div>
+        <div id="chatLog" class="chat-log">
+            <div class="msg ai">
+                <div class="msg-sender">Flux // AI</div>
+                Greetings. All systems online. How can I assist you today?
             </div>
-            <span class="brand-version">OS TERMINAL v3.8</span>
         </div>
+    </div>
 
-        <div class="telemetry-badges">
-            <div class="hud-badge">
-                <i class="fa-solid fa-clock"></i> <span id="hudTime">--:--:--</span>
-            </div>
-            <div class="hud-badge">
-                <i class="fa-solid fa-wifi"></i> <span id="hudPing">24ms</span>
-            </div>
-            <div class="hud-badge">
-                <i class="fa-solid fa-microphone-lines"></i> <span>EN-AU ACTIVE</span>
-            </div>
-            <div id="statusBadge" class="hud-badge status-pill">
-                <div class="status-dot"></div>
-                <span id="statusText">FLUX ACTIVE // STANDBY</span>
-            </div>
-        </div>
-    </header>
+    <!-- Bottom Bar: Input & Controls -->
+    <div class="bottom-bar">
+        <input type="text" id="textInput" class="terminal-input" placeholder="Type command or query here...">
+        <button id="sendBtn" class="action-btn">Transmit</button>
+        <button id="micBtn" class="action-btn">🎤 Voice Input</button>
+    </div>
+</div>
 
-    <!-- MAIN TERMINAL GRID -->
-    <main class="main-container">
+<script>
+    // --- CONFIGURATION ---
+    const GROQ_API_KEY = "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"; 
+    const MODEL_NAME = "qwen/qwen3.8-27b";
+    
+    const systemPrompt = {
+        "role": "system", 
+        "content": "You are Flux, a high-end, intelligent AI assistant with a neon cyberfunk aesthetic. Keep your responses brief, sharp, and conversational. Do not use markdown syntax, asterisks, or formatting symbols."
+    };
+    
+    let conversationHistory = [systemPrompt];
+    let isListening = false;
+    let isSpeaking = false;
+
+    const statusBadge = document.getElementById("statusBadge");
+    const chatLog = document.getElementById("chatLog");
+    const textInput = document.getElementById("textInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const micBtn = document.getElementById("micBtn");
+
+    function updateStatus(text, color = "#00f2ff") {
+        statusBadge.innerText = text;
+        statusBadge.style.borderColor = color;
+        statusBadge.style.color = color;
+    }
+
+    function appendMessage(sender, text, type) {
+        const msgDiv = document.createElement("div");
+        msgDiv.className = `msg ${type}`;
+        msgDiv.innerHTML = `<div class="msg-sender">${sender}</div>${text}`;
+        chatLog.appendChild(msgDiv);
+        chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    // --- HOLOGRAPHIC ORB CANVAS ANIMATION ---
+    const canvas = document.getElementById("holoCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight - 30;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    let angle = 0;
+    function drawHologram() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = Math.min(centerX, centerY) * 0.55;
+
+        // Outer rotating ring
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = isSpeaking ? "#38bdf8" : (isListening ? "#ff0055" : "#00f2ff44");
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Inner pulsing orb core
+        angle += 0.03;
+        const pulse = Math.sin(angle) * 8;
+        const coreRadius = Math.max(10, radius * 0.4 + (isSpeaking ? pulse : 0));
+
+        const gradient = ctx.createRadialGradient(centerX, centerY, 2, centerX, centerY, coreRadius);
+        gradient.addColorStop(0, '#ffffff');
+        gradient.addColorStop(0.4, isSpeaking ? '#38bdf8' : '#00f2ff');
+        gradient.addColorStop(1, 'rgba(0, 242, 255, 0)');
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreRadius, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Orbital nodes
+        for (let i = 0; i < 3; i++) {
+            const orbitAngle = angle * (i + 1) * 0.5;
+            const x = centerX + Math.cos(orbitAngle) * (radius * 0.8);
+            const y = centerY + Math.sin(orbitAngle) * (radius * 0.3);
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = "#00f2ff";
+            ctx.fill();
+        }
+
+        requestAnimationFrame(drawHologram);
+    }
+    drawHologram();
+
+    // --- LLM API HANDLING ---
+    async function submitQuery(queryText) {
+        if (!queryText.trim()) return;
+
+        appendMessage("User", queryText, "user");
+        textInput.value = "";
+        updateStatus("PROCESSING...", "#38bdf8");
+
+        conversationHistory.push({ role: "user", content: queryText });
+
+        const rawReply = await queryGroqAPI(conversationHistory);
+        const spokenReply = cleanTextForSpeech(rawReply);
+
+        appendMessage("Flux // AI", rawReply, "ai");
+        conversationHistory.push({ role: "assistant", content: rawReply });
         
-        <!-- LEFT PANEL: SYSTEM DIAGNOSTICS & TELEMETRY -->
-        <section class="hud-panel left-panel">
-            <div class="panel-header">
-                <span><i class="fa-solid fa-chart-line"></i> System Diagnostics</span>
-                <span style="font-size: 0.65rem;">SYS_OK</span>
-            </div>
+        speakText(spokenReply);
+    }
 
-            <div class="telemetry-card">
-                <div class="card-title">
-                    <span>COGNITIVE LOAD</span>
-                    <span id="cogLoadVal">14%</span>
-                </div>
-                <div class="progress-bar-bg">
-                    <div id="cogLoadBar" class="progress-bar-fill" style="width: 14%;"></div>
-                </div>
-            </div>
+    sendBtn.addEventListener("click", () => submitQuery(textInput.value));
+    textInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") submitQuery(textInput.value);
+    });
 
-            <div class="telemetry-card">
-                <div class="card-title">
-                    <span>NETWORK TELEMETRY</span>
-                    <span style="color: var(--neon-green);">STABLE</span>
-                </div>
-                <canvas id="telemetryCanvas" class="telemetry-graph"></canvas>
-            </div>
+    async function queryGroqAPI(history) {
+        try {
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${GROQ_API_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: MODEL_NAME,
+                    messages: history,
+                    temperature: 0.7,
+                    max_completion_tokens: 200
+                })
+            });
 
-            <div class="telemetry-card">
-                <div class="card-title">
-                    <span>ACTIVE MODEL</span>
-                    <span style="color: var(--neon-cyan);">Groq Cloud</span>
-                </div>
-                <div class="card-value" style="font-size: 0.85rem;">
-                    qwen/qwen3.8-27b
-                </div>
-            </div>
-
-            <div class="telemetry-card">
-                <div class="card-title">
-                    <span>TASK QUEUE</span>
-                    <span style="color: var(--neon-cyan);">IDLE</span>
-                </div>
-                <div style="font-size: 0.78rem; color: var(--text-dim); line-height: 1.4;">
-                    • Voice Pipeline: en-AU Ready<br>
-                    • STT Engine: WebSpeech (en-AU)<br>
-                    • Visualizer: 3D Particle Orb
-                </div>
-            </div>
-
-            <!-- API Key Input Config Bar -->
-            <div class="api-key-config">
-                <label for="apiKeyInput"><i class="fa-solid fa-key"></i> Groq API Key</label>
-                <input type="password" id="apiKeyInput" class="ap=====================================================================
-           5. CENTER PANEL: HOLOGRAPHIC 3D PARTICLE ORB CANVAS
-           ========================================================================== */
-        .center-panel {
-            grid-area: center-core;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            background: transparent;
-            border: none;
-            box-shadow: none;
+            const data = await response.json();
+            if (data.error) return `API Error: ${data.error.message || 'Check API Key.'}`;
+            return data.choices[0].message.content;
+        } catch (error) {
+            return "Unable to connect to Groq servers. Verify network connection.";
         }
-
-        #visualizerCanvas {
-            width: 100%;
-            height: 100%;
-            max-width: 550px;
-            max-height: 550px;
-            filter: drop-shadow(0 0 30px rgba(0, 242, 255, 0.25));
-        }
-
-        .core-caption {
-            position: absolute;
-            bottom: 24px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            color: var(--neon-cyan);
-            text-transform: uppercase;
-            text-align: center;
-            background: rgba(3, 10, 24, 0.85);
-            padding: 6px 20px;
-            border-radius: 20px;
-            border: 1px solid var(--panel-border);
-            box-shadow: var(--glow-cyan);
-        }
-
-        /* ==========================================================================
-           6. RIGHT PANEL: TEXT TERMINAL (CONVERSATION LOG)
-           ========================================================================== */
-        .right-panel {
-            grid-area: right-hud;
-        }
-
-        .terminal-log {
-            flex-grow: 1;
-            padding: 14px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            font-size: 0.85rem;
-            scroll-behavior: smooth;
-        }
-
-        .log-entry {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .log-entry.user {
-            align-items: flex-end;
-        }
-
-        .log-entry.assistant {
-            align-items: flex-start;
-        }
-
-        .entry-header {
-            font-size: 0.65rem;
-            color: var(--text-dim);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            display: flex;
-            gap: 6px;
-        }
-
-        .entry-bubble {
-            padding: 10px 14px;
-            border-radius: 8px;
-            max-width: 90%;
-            line-height: 1.45;
-            word-break: break-word;
-        }
-
-        .log-entry.user .entry-bubble {
-            background: rgba(0, 102, 255, 0.18);
-            border: 1px solid rgba(0, 102, 255, 0.45);
-            color: #ffffff;
-            border-bottom-right-radius: 2px;
-        }
-
-        .log-entry.assistant .entry-bubble {
-            background: rgba(0, 242, 255, 0.08);
-            border: 1px solid rgba(0, 242, 255, 0.35);
-            color: var(--text-primary);
-            border-bottom-left-radius: 2px;
-            box-shadow: inset 0 0 10px rgba(0, 242, 255, 0.05);
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 5px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--panel-border);
-            border-radius: 3px;
-        }
-
-        /* ==========================================================================
-           7. BOTTOM PANEL: COMMAND BAR INPUT TERMINAL
-           ========================================================================== */
-        .bottom-panel {
-            grid-area: bottom-hud;
-            padding: 10px 18px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(3, 9, 22, 0.95);
-            border: 1px solid var(--neon-cyan);
-            box-shadow: 0 0 25px rgba(0, 242, 255, 0.15);
-        }
-
-        .prompt-symbol {
-            color: var(--neon-cyan);
-            font-family: var(--font-code);
-            font-size: 1.1rem;
-            font-weight: bold;
-            text-shadow: var(--glow-cyan);
-        }
-
-        .command-input {
-            flex-grow: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: #ffffff;
-            font-family: var(--font-code);
-            font-size: 0.95rem;
-            letter-spacing: 0.5px;
-        }
-
-        .command-input::placeholder {
-            color: rgba(80, 120, 160, 0.6);
-        }
-
-        .hud-btn {
-            background: rgba(0, 242, 255, 0.1);
-            border: 1px solid var(--neon-cyan);
-            color: var(--neon-cyan);
-            padding: 10px 18px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            cursor: pointer;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-
-        .hud-btn:hover {
-            background: rgba(0, 242, 255, 0.25);
-            box-shadow: var(--glow-cyan);
-            transform: translateY(-1px);
-        }
-
-        .mic-btn {
-            background: rgba(255, 0, 119, 0.12);
-            border: 1px solid var(--neon-magenta);
-            color: var(--neon-magenta);
-        }
-
-        .mic-btn:hover {
-            background: rgba(255, 0, 119, 0.3);
-            box-shadow: var(--glow-magenta);
-        }
-
-        .mic-btn.active {
-            background: var(--neon-magenta);
-            color: #ffffff;
-            box-shadow: var(--glow-magenta);
-            animation: pulse-mic 1.2s infinite;
-        }
-
-        @keyframes pulse-mic {
-            0% { box-shadow: 0 0 10px rgba(255, 0, 119, 0.6); }
-            50% { box-shadow: 0 0 30px rgba(255, 0, 119, 0.95); }
-            100% { box-shadow: 0 0 10px rgba(255, 0, 119, 0.6); }
-        }
-
-        /* RESPONSIVE LAYOUT BREAKPOINTS */
-        @media (max-width: 992px) {
-            .main-container {
-                grid-template-columns: 1fr;
-                grid-template-rows: 280px 240px 1fr auto;
-                grid-template-areas:
-                    "center-core"
-                    "left-hud"
-                    "right-hud"
-                    "bottom-hud";
-                overflow-y: auto;
-                height: auto;
-            }
-            body {
-                overflow-y: auto;
-            }
-        }
-    </style>
-</head>
-<body>
-
-    <div class="ambient-core-glow"></div>
-
-    <!-- TOP HEADER HUD -->
-    <header class="header-hud">
-        <div class="brand-section">
-            <div class="brand-title">
-                <i class="fa-solid fa-atom"></i> FLUX
-            </div>
-            <span class="brand-version">OS TERMINAL v3.8</span>
-        </div>
-
-        <div class="telemetry-badges">
-            <div class="hud-badge">
-                <i class="fa-solid fa-clock"></i> <span id="hudTime">--:--:--</span>
-            </div>
-            <div class="hud-badge">
-                <i class="fa-solid fa-wifi"></i> <span id="hudPing">24ms</span>
-            </div>
-            <div class="hud-badge">
-                <i class="fa-solid fa-microphone-lines"></i> <span>EN-AU ACTIVE</span>
-            </div>
-            <div id="statusBadge" class="hud-badge status-pill">
-                <div class="status-dot"></div>
-                <span id="statusText">FLUX ACTIVE // STANDBY</span>
-            </div>
-        </div>
-    </header>
-
-    <!-- MAIN TERMINAL GRID -->
-    <main class="main-container">
-        
-        <!-- LEFT PANEL: SYSTEM DIAGNOSTICS & TELEMETRY -->
-        <section class="hud-panel left-panel">
-            <div class="panel-header">
-                <span><i class="fa-solid fa-chart-line"></i> System Diagnostics</span>
-                <span style="font-size: 0.65rem;">SYS_OK</span>
-            </div>
-
-            <div class="telemetry-card">
-                <div class="card-title">
-                    <span>COGNITIVE LOAD</span>
-                    <span id="cogLoadVal">14%</span>
-                </div>
-                <div class="progress-bar-bg">
-                    <div id="cogLoadBar" class="progress-bar-fill" style="width: 14%;"></div>
-                </div>
-            </div>
-
-            <div class="telemetry-card">
-                <div class="card-title">
-                    <span>NETWORK TELEMETRY</span>
-                    <span style="color: var(--neon-green);">STABLE</span>
-                </div>
-                <canvas id="telemetryCanvas" class="telemetry-graph"></canvas>
-            </div>
-
-            <div class="telemetry-card">
-                <div class="card-title">
-                    <span>ACTIVE MODEL</span>
-                    <span style="color: var(--neon-cyan);">Groq Cloud</span>
-                </div>
-                <div class="card-value" style="font-size: 0.85rem;">
-                    qwen/qwen3.8-27b
-                </div>
-            </div>
-
-            <div class="telemetry-card">
-                <div class="card-title">
-                    <span>TASK QUEUE</span>
-                    <span style="color: var(--neon-cyan);">IDLE</span>
-                </div>
-                <div style="font-size: 0.78rem; color: var(--text-dim); line-height: 1.4;">
-                    • Voice Pipeline: en-AU Ready<br>
-                    • STT Engine: WebSpeech (en-AU)<br>
-                    • Visualizer: 3D Particle Orb
-                </div>
-            </div>
-
-            <!-- API Key Input Config Bar -->
-            <div class="api-key-config">
-                <label for="apiKeyInput"><i class="fa-solid fa-key"></i> Groq API Key</label>
-                <input type="password" id="apiKeyInput" class="api-key-input" placeholder="gsk_..." value="">
-            </div>
-        </section>
-
-        <!-- CENTER PANEL: DYNAMIC HOLOGRAPHIC 3D PARTICLE ORB -->
-        <section class="center-panel">
-            <canvas id="visualizerCanvas"></canvas>
-            <div id="coreCaption" class="core-caption">AWAITING INPUT...</div>
-        </section>
-
-        <!-- UPPER RIGHT PANEL: TEXT TERMINAL (CONVERSATION TRANSCRIPT) -->
-        <section class="hud-panel right-panel">
-            <div class="panel-header">
-                <span><i class="fa-solid fa-terminal"></i> Text Terminal</span>
-                <i class="fa-solid fa-circle-nodes"></i>
-            </div>
-            <div id="terminalLog" class="terminal-log">
-                <div class="log-entry assistant">
-                    <div class="entry-header">
-                        <span>Received text (FLUX)</span> • <span class="time-stamp">00:00:00</span>
-                    </div>
-                    <div class="entry-bubble">
-                        G'day! I am FLUX, your personal AI assistant. Systems are fully calibrated in Australian English. How can I assist you today?
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- BOTTOM PANEL: COMMAND INPUT BAR -->
-        <section class="hud-panel bottom-panel">
-            <span class="prompt-symbol">&gt;_</span>
-            <input type="text" id="commandInput" class="command-input" placeholder="Type command or speak to FLUX..." autocomplete="off">
-            <button id="sendBtn" class="hud-btn">
-                <i class="fa-solid fa-paper-plane"></i> SUBMIT
-            </button>
-            <button id="micBtn" class="hud-btn mic-btn">
-                <i class="fa-solid fa-microphone"></i> HOLD / CLICK TO SPEAK
-            </button>
-        </section>
-
-    </main>
-
-    <script>
-        /* ==========================================================================
-           8. APPLICATION STATE & CONFIGURATION
-           ========================================================================== */
-        let GROQ_API_KEY = "";
-        const MODEL_NAME = "qwen/qwen3.8-27b";
-
-        const systemPrompt = {
-            "role": "system",
-            "content": "You are FLUX, a witty, warm, articulate, and highly intelligent sci-fi cyberpunk AI personal assistant. Speak in a helpful and charming manner with subtle Australian friendly demeanor. Keep responses brief, clear, and direct. NEVER use markdown symbols (*, #, _, `, >), bullet points, or special formatting characters."
-        };
-
-        let conversationHistory = [systemPrompt];
-        let isListening = false;
-        let isSpeaking = false;
-        let coreState = "idle"; // "idle", "listening", "speaking", "processing"
-
-        // DOM Elements
-        const hudTime = document.getElementById("hudTime");
-        const statusText = document.getElementById("statusText");
-        const statusBadge = document.getElementById("statusBadge");
-        const terminalLog = document.getElementById("terminalLog");
-        const commandInput = document.getElementById("commandInput");
-        const sendBtn = document.getElementById("sendBtn");
-        const micBtn = document.getElementById("micBtn");
-        const apiKeyInput = document.getElementById("apiKeyInput");
-        const coreCaption = document.getElementById("coreCaption");
-        const cogLoadBar = document.getElementById("cogLoadBar");
-        const cogLoadVal = document.getElementById("cogLoadVal");
-
-        // Restore API key from local storage if available
-        if (localStorage.getItem("FLUX_GROQ_KEY")) {
-            GROQ_API_KEY = localStorage.getItem("FLUX_GROQ_KEY");
-            apiKeyInput.value = GROQ_API_KEY;
-        }
-
-        apiKeyInput.addEventListener("change", (e) => {
-            GROQ_API_KEY = e.target.value.trim();
-            localStorage.setItem("FLUX_GROQ_KEY", GROQ_API_KEY);
-        });
-
-        // Update live clock
-        function updateClock() {
-            const now = new Date();
-            hudTime.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
-
-        /* ==========================================================================
-           9. STATE MACHINE & HUD TELEMETRY UPDATES
-           ========================================================================== */
-        function setCoreState(state, label = null) {
-            coreState = state;
-            if (state === "idle") {
-                statusText.innerText = label || "FLUX ACTIVE // STANDBY";
-                statusBadge.style.borderColor = "var(--neon-cyan)";
-                statusBadge.style.color = "var(--neon-cyan)";
-                coreCaption.innerText = "AWAITING INPUT...";
-                updateCognitiveLoad(14);
-            } else if (state === "listening") {
-                statusText.innerText = "AUDIO RECEPTOR LISTENING";
-                statusBadge.style.borderColor = "var(--neon-magenta)";
-                statusBadge.style.color = "var(--neon-magenta)";
-                coreCaption.innerText = "LISTENING TO VOICE...";
-                updateCognitiveLoad(52);
-            } else if (state === "speaking") {
-                statusText.innerText = "SYNTHESIZING VOCAL OUTPUT";
-                statusBadge.style.borderColor = "var(--neon-green)";
-                statusBadge.style.color = "var(--neon-green)";
-                coreCaption.innerText = "FLUX SPEAKING...";
-                updateCognitiveLoad(82);
-            } else if (state === "processing") {
-                statusText.innerText = "PROCESSING QUERY...";
-                statusBadge.style.borderColor = "var(--neon-amber)";
-                statusBadge.style.color = "var(--neon-amber)";
-                coreCaption.innerText = "THINKING...";
-                updateCognitiveLoad(94);
-            }
-        }
-
-        function updateCognitiveLoad(percentage) {
-            cogLoadBar.style.width = percentage + "%";
-            cogLoadVal.innerText = percentage + "%";
-        }
-
-        function getCurrentTimeFormatted() {
-            return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }
-
-        function appendLog(role, text) {
-            const entry = document.createElement("div");
-            entry.className = `log-entry ${role}`;
-
-            const header = document.createElement("div");
-            header.className = "entry-header";
-            const roleLabel = role === 'user' ? 'Sent text (User)' : 'Received text (FLUX)';
-            header.innerHTML = `<span>${roleLabel}</span> • <span>${getCurrentTimeFormatted()}</span>`;
-
-            const bubble = document.createElement("div");
-            bubble.className = "entry-bubble";
-            bubble.innerText = text;
-
-            entry.appendChild(header);
-            entry.appendChild(bubble);
-            terminalLog.appendChild(entry);
-            terminalLog.scrollTop = terminalLog.scrollHeight;
-        }
-
-        /* ==========================================================================
-           10. GROQ AI API INTEGRATION
-           ========================================================================== */
-        async function queryGroq(userText) {
-            const key = GROQ_API_KEY || apiKeyInput.value.trim();
-            if (!key) {
-                return "System Alert: Groq API key is missing. Please enter your API key in the diagnostics panel on the left.";
-            }
-
-            conversationHistory.push({ role: "user", content: userText });
-
-            try {
-                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${key}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        model: MODEL_NAME,
-                        messages: conversationHistory,
-                        temperature: 0.75,
-                        max_completion_tokens: 250
-                    })
-                });
-
-                const data = await response.json();
-                if (data.error) {
-                    return `API Error: ${data.error.message || 'Authentication error.'}`;
-                }
-
-                const reply = data.choices[0].message.content;
-                conversationHistory.push({ role: "assistant", content: reply });
-                return reply;
-            } catch (err) {
-                return "Network Fault: Unable to establish connection to Groq AI core. Please check connection.";
-            }
-        }
-
-        /* ==========================================================================
-           11. TEXT-TO-SPEECH (TTS - AUSTRALIAN ENGLISH LOCKED)
-           ========================================================================== */
-        function scrubTextForSpeech(text) {
-            // Strip markdown, code blocks, bullet points, and hashtags
-            return text
-                .replace(/[*_#`~]/g, '')
-                .replace(/\[.*?\]/g, '')
-                .replace(/<.*?>/g, '')
-                .trim();
-        }
-
-        function speakText(text) {
-            if (!('speechSynthesis' in window)) {
-                setCoreState("idle");
-                return;
-            }
-
-            window.speechSynthesis.cancel();
-            setCoreState("speaking");
-
-            const cleanText = scrubTextForSpeech(text);
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-
-            // Automatically select Australian English Voice
-            const voices = window.speechSynthesis.getVoices();
-            const ausVoice = voices.find(v => v.lang === 'en-AU') || 
-                             voices.find(v => v.lang.includes('en-AU')) ||
-                             voices.find(v => v.lang.startsWith('en'));
-
-            if (ausVoice) {
-                utterance.voice = ausVoice;
-                utterance.lang = ausVoice.lang;
-            } else {
-                utterance.lang = 'en-AU';
-            }
-
-            utterance.onend = () => {
-                isSpeaking = false;
-                setCoreState("idle");
-            };
-
-            utterance.onerror = () => {
-                isSpeaking = false;
-                setCoreState("idle");
-            };
-
-            isSpeaking = true;
-            window.speechSynthesis.speak(utterance);
-        }
-
-        /* ==========================================================================
-           12. SPEECH-TO-TEXT (STT - AUSTRALIAN LOCALE)
-           ========================================================================== */
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition = null;
-
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = true;
-            recognition.lang = 'en-AU'; // Default Australian English
-
-            recognition.onstart = () => {
-                isListening = true;
-                micBtn.classList.add("active");
-                setCoreState("listening");
-            };
-
-            recognition.onresult = (event) => {
-                let interim = '';
-                let final = '';
-
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        final += event.results[i][0].transcript;
-                    } else {
-                        interim += event.results[i][0].transcript;
-                    }
-                }
-
-                if (interim) {
-                    commandInput.value = interim;
-                }
-
-                if (final) {
-                    commandInput.value = final;
-                    processUserMessage(final);
-                }
-            };
-
-            recognition.onend = () => {
-                isListening = false;
-                micBtn.classList.remove("active");
-                if (!isSpeaking && coreState === "listening") {
-                    setCoreState("idle");
-                }
-            };
-
-            recognition.onerror = () => {
-                isListening = false;
-                micBtn.classList.remove("active");
-                setCoreState("idle");
-            };
-        }
-
-        // Action Handlers
-        async function processUserMessage(text) {
-            if (!text.trim()) return;
-
-            commandInput.value = "";
-            appendLog("user", text);
-
-            setCoreState("processing");
-            const reply = await queryGroq(text);
-
-            appendLog("assistant", reply);
-            speakText(reply);
-        }
-
-        sendBtn.addEventListener("click", () => {
-            processUserMessage(commandInput.value);
-        });
-
-        commandInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                processUserMessage(commandInput.value);
-            }
-        });
+    }
+
+    function cleanTextForSpeech(text) {
+        return text.replace(/[*_#`~]/g, '').replace(/\[.*?\]/g, '').trim();
+    }
+
+    // --- SPEECH RECOGNITION & AUSTRALIAN ENGLISH TTS ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-AU'; // Default Australian English locale
 
         micBtn.addEventListener("click", () => {
             if (isSpeaking) {
                 window.speechSynthesis.cancel();
                 isSpeaking = false;
             }
-
-            if (!recognition) {
-                alert("Speech recognition is not supported on this browser. Try Google Chrome or Microsoft Edge.");
-                return;
-            }
-
-            if (isListening) {
-                recognition.stop();
+            if (!isListening) {
+                try { recognition.start(); } catch (e) { console.warn(e); }
             } else {
-                try {
-                    recognition.start();
-                } catch (e) {
-                    console.warn(e);
-                }
+                recognition.stop();
             }
         });
 
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.onvoiceschanged = () => {
-                window.speechSynthesis.getVoices();
-            };
-        }
-
-        /* ==========================================================================
-           13. TELEMETRY WAVEFORM CANVAS GRAPH (LEFT PANEL)
-           ========================================================================== */
-        const telemetryCanvas = document.getElementById("telemetryCanvas");
-        const tCtx = telemetryCanvas.getContext("2d");
-
-        function drawTelemetryGraph() {
-            telemetryCanvas.width = telemetryCanvas.offsetWidth;
-            telemetryCanvas.height = telemetryCanvas.offsetHeight;
-
-            tCtx.clearRect(0, 0, telemetryCanvas.width, telemetryCanvas.height);
-            tCtx.beginPath();
-            tCtx.strokeStyle = "#00f2ff";
-            tCtx.lineWidth = 1.5;
-
-            const sliceWidth = telemetryCanvas.width / 20;
-            let x = 0;
-
-            for (let i = 0; i <= 20; i++) {
-                const y = (Math.sin(Date.now() * 0.003 + i) * 10) + (telemetryCanvas.height / 2);
-                if (i === 0) tCtx.moveTo(x, y);
-                else tCtx.lineTo(x, y);
-                x += sliceWidth;
-            }
-            tCtx.stroke();
-        }
-        setInterval(drawTelemetryGraph, 100);
-
-        /* ==========================================================================
-           14. HOLOGRAPHIC 3D PARTICLE ORB CANVAS VISUALIZER (CENTER PIECE)
-           ========================================================================== */
-        const canvas = document.getElementById("visualizerCanvas");
-        const ctx = canvas.getContext("2d");
-
-        function resizeVisualizer() {
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-        }
-        window.addEventListener("resize", resizeVisualizer);
-        resizeVisualizer();
-
-        // 3D Particle Cloud System
-        const particleCount = 280;
-        const particles = [];
-
-        class Particle3D {
-            constructor() {
-                this.reset();
-            }
-
-            reset() {
-                // Sphere point distribution
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos((Math.random() * 2) - 1);
-                this.baseRadius = 110 + Math.random() * 30;
-
-                this.x = this.baseRadius * Math.sin(phi) * Math.cos(theta);
-                this.y = this.baseRadius * Math.sin(phi) * Math.sin(theta);
-                this.z = this.baseRadius * Math.cos(phi);
-
-                this.size = 1.2 + Math.random() * 2.2;
-            }
-
-            rotate(angleX, angleY) {
-                // Rotate around Y
-                let cosY = Math.cos(angleY), sinY = Math.sin(angleY);
-                let x1 = this.x * cosY - this.z * sinY;
-                let z1 = this.z * cosY + this.x * sinY;
-
-                // Rotate around X
-                let cosX = Math.cos(angleX), sinX = Math.sin(angleX);
-                let y2 = this.y * cosX - z1 * sinX;
-                let z2 = z1 * cosX + this.y * sinX;
-
-                this.x = x1;
-                this.y = y2;
-                this.z = z2;
-            }
-
-            draw(centerX, centerY, pulseFactor, color) {
-                const perspective = 350 / (350 + this.z);
-                const screenX = centerX + this.x * perspective * pulseFactor;
-                const screenY = centerY + this.y * perspective * pulseFactor;
-                const alpha = Math.max(0.1, (this.z + 140) / 280);
-
-                ctx.beginPath();
-                ctx.arc(screenX, screenY, this.size * perspective, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.globalAlpha = alpha;
-                ctx.fill();
-            }
-        }
-
-        for (let i = 0; i < particleCount; i++) {
-            particles.push(new Particle3D());
-        }
-
-        let tick = 0;
-
-        function animateOrb() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            tick += 0.02;
-
-            // Orb parameters based on AI state
-            let pulse = 1.0 + Math.sin(tick * 2) * 0.05;
-            let orbColor = "#00f2ff";
-            let rotSpeedX = 0.005;
-            let rotSpeedY = 0.008;
-
-            if (coreState === "listening") {
-                pulse = 1.15 + Math.sin(tick * 6) * 0.12;
-                orbColor = "#ff0077";
-                rotSpeedX = 0.015;
-                rotSpeedY = 0.022;
-            } else if (coreState === "speaking") {
-                pulse = 1.25 + Math.sin(tick * 9) * 0.22;
-                orbColor = "#00ff88";
-                rotSpeedX = 0.02;
-                rotSpeedY = 0.028;
-            } else if (coreState === "processing") {
-                pulse = 1.05 + Math.cos(tick * 8) * 0.08;
-                orbColor = "#ffaa00";
-                rotSpeedX = 0.03;
-                rotSpeedY = 0.035;
-            }
-
-            // Draw outer neon HUD rings
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, 135 * pulse, 0, Math.PI * 2);
-            ctx.strokeStyle = orbColor;
-            ctx.lineWidth = 1;
-            ctx.globalAlpha = 0.25;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, 160 * pulse, 0, Math.PI * 2);
-            ctx.strokeStyle = orbColor;
-            ctx.lineWidth = 1;
-            ctx.setLineDash([8, 12]);
-            ctx.globalAlpha = 0.18;
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Render 3D particle core
-            particles.forEach(p => {
-                p.rotate(rotSpeedX, rotSpeedY);
-                p.draw(centerX, centerY, pulse, orbColor);
-            });
-
-            requestAnimationFrame(animateOrb);
-        }
-
-        // Initialize animation on load
-        window.onload = () => {
-            resizeVisualizer();
-            animateOrb();
+        recognition.onstart = () => {
+            isListening = true;
+            micBtn.classList.add("active");
+            micBtn.innerText = "🛑 Listening...";
+            updateStatus("LISTENING [en-AU]", "#ff0055");
         };
-    </script>
+
+        recognition.onresult = (event) => {
+            const speechResult = event.results[0][0].transcript.trim();
+            submitQuery(speechResult);
+        };
+
+        recognition.onend = () => {
+            isListening = false;
+            micBtn.classList.remove("active");
+            micBtn.innerText = "🎤 Voice Input";
+            if (!isSpeaking) updateStatus("SYSTEM READY", "#00f2ff");
+        };
+
+        recognition.onerror = () => {
+            isListening = false;
+            micBtn.classList.remove("active");
+            micBtn.innerText = "🎤 Voice Input";
+            updateStatus("SYSTEM READY", "#00f2ff");
+        };
+    } else {
+        micBtn.style.display = 'none';
+    }
+
+    function speakText(text) {
+        if (!('speechSynthesis' in window)) {
+            updateStatus("SYSTEM READY", "#00f2ff");
+            return;
+        }
+
+        isSpeaking = true;
+        updateStatus("SPEAKING...", "#38bdf8");
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 0.95;
+        utterance.lang = 'en-AU'; // Locked to Australian English default
+
+        const voices = window.speechSynthesis.getVoices();
+        const ausVoice = voices.find(v => v.lang === 'en-AU' || v.name.includes('Australia') || v.name.includes('Karen') || v.name.includes('Natasha'));
+        const fallbackVoice = voices.find(v => v.lang.startsWith('en'));
+
+        if (ausVoice) {
+            utterance.voice = ausVoice;
+        } else if (fallbackVoice) {
+            utterance.voice = fallbackVoice;
+        }
+
+        utterance.onend = () => {
+            isSpeaking = false;
+            updateStatus("SYSTEM READY", "#00f2ff");
+        };
+
+        utterance.onerror = () => {
+            isSpeaking = false;
+            updateStatus("SYSTEM READY", "#00f2ff");
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+</script>
+
 </body>
 </html>
