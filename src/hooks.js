@@ -1,61 +1,44 @@
-import { useEffect, useState } from 'react'
-
-// Scales a fixed-size stage to fit the window, keeping aspect ratio.
-export function useStageScale(w, h) {
-  const [scale, setScale] = useState(1)
-  useEffect(() => {
-    const fit = () => setScale(Math.min(window.innerWidth / w, window.innerHeight / h))
-    fit()
-    window.addEventListener('resize', fit)
-    return () => window.removeEventListener('resize', fit)
-  }, [w, h])
-  return scale
-}
-
-// A number that drifts randomly around `base` every `ms` milliseconds.
-export function useLive(base, spread, ms = 1600, min = 0, max = 100) {
-  const [v, setV] = useState(base)
-  useEffect(() => {
-    const id = setInterval(() => {
-      setV((p) => {
-        const next = p + (Math.random() - 0.5) * spread + (base - p) * 0.15
-        return Math.max(min, Math.min(max, next))
-      })
-    }, ms)
-    return () => clearInterval(id)
-  }, [base, spread, ms, min, max])
-  return v
-}
-
-// A scrolling data series (values 0-100) for sparklines and area charts.
-export function useSeries(len, ms = 900, seed = 50) {
-  const [data, setData] = useState(() => {
-    const arr = []
-    let p = seed
-    for (let i = 0; i < len; i++) {
-      p = Math.max(8, Math.min(92, p + (Math.random() - 0.5) * 26))
-      arr.push(p)
-    }
-    return arr
-  })
-  useEffect(() => {
-    const id = setInterval(() => {
-      setData((d) => {
-        const last = d[d.length - 1]
-        const next = Math.max(8, Math.min(92, last + (Math.random() - 0.5) * 26))
-        return [...d.slice(1), next]
-      })
-    }, ms)
-    return () => clearInterval(id)
-  }, [ms])
-  return data
-}
+import { useState, useEffect, useCallback } from 'react'
 
 export function useClock() {
-  const [t, setT] = useState(() => new Date())
+  const [time, setTime] = useState(() => new Date())
   useEffect(() => {
-    const id = setInterval(() => setT(new Date()), 1000)
+    const id = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
-  return t
+  return time
 }
+
+export function useSpeechRecognition({ onResult, onStart, onEnd, onError }) {
+  const [listening, setListening] = useState(false)
+  const recRef = useRef(null)
+
+  useEffect(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) return
+    const rec = new SR()
+    rec.continuous = false
+    rec.interimResults = false
+    rec.lang = 'en-US'
+    rec.onstart = () => { setListening(true); onStart?.() }
+    rec.onend = () => { setListening(false); onEnd?.() }
+    rec.onerror = (e) => { setListening(false); onError?.(e) }
+    rec.onresult = (e) => {
+      const text = e.results[0][0].transcript
+      onResult?.(text)
+    }
+    recRef.current = rec
+  }, [onResult, onStart, onEnd, onError])
+
+  const start = useCallback(() => {
+    try { recRef.current?.start() } catch {}
+  }, [])
+  const stop = useCallback(() => {
+    try { recRef.current?.stop() } catch {}
+  }, [])
+
+  return { listening, start, stop, supported: !!(window.SpeechRecognition || window.webkitSpeechRecognition) }
+}
+
+// fix missing import
+import { useRef } from 'react'
