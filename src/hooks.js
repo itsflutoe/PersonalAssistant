@@ -1,22 +1,53 @@
 import { useEffect, useState } from 'react'
 
-// Landscape/laptop: scale the fixed stage to fit the window (aspect kept).
-// Portrait phones/tablets: switch to the stacked layout, scaled to the screen width.
+// Phones are detected from the physical screen, not the window, so the phone keyboard opening
+// (which shrinks the window) or "Desktop site" mode cannot flip the layout.
+function isPhoneDevice() {
+  const s = window.screen
+  const short = Math.min(s?.width || 9999, s?.height || 9999)
+  return short <= 600 || /iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent)
+}
+
+function isPortrait() {
+  const o = window.screen?.orientation?.type
+  if (o) return o.startsWith('portrait')
+  return window.innerHeight >= window.innerWidth
+}
+
+// Laptop/desktop/tablet-landscape: scale the fixed stage to fit the window (aspect kept).
+// Phones (and narrow portrait windows): stacked layout scaled to the screen width.
 export function useStageScale(w, h, mobileW = 400) {
   const calc = () => {
     const iw = window.innerWidth
     const ih = window.innerHeight
-    const mobile = ih > iw && iw < 900
-    return { mobile, scale: mobile ? iw / mobileW : Math.min(iw / w, ih / h) }
+    const phone = isPhoneDevice()
+    const portrait = isPortrait()
+    const mobile = phone || (ih > iw && iw < 900)
+    let scale
+    if (!mobile) scale = Math.min(iw / w, ih / h)
+    else if (phone && !portrait) scale = Math.min(iw / mobileW, 1.25) // phone held sideways
+    else scale = iw / mobileW
+    // ultrawide window: the stage is letterboxed left/right, so the scene fades into the side bars
+    const wide = !mobile && iw / ih > (w / h) * 1.12
+    return { mobile, scale, wide }
   }
+
   const [s, setS] = useState(calc)
   useEffect(() => {
-    const fit = () => setS(calc())
+    const fit = () =>
+      setS((prev) => {
+        const n = calc()
+        return n.mobile === prev.mobile && n.wide === prev.wide && Math.abs(n.scale - prev.scale) < 0.001
+          ? prev
+          : n
+      })
     window.addEventListener('resize', fit)
     window.addEventListener('orientationchange', fit)
+    window.screen?.orientation?.addEventListener?.('change', fit)
     return () => {
       window.removeEventListener('resize', fit)
       window.removeEventListener('orientationchange', fit)
+      window.screen?.orientation?.removeEventListener?.('change', fit)
     }
   }, [w, h, mobileW])
   return s
