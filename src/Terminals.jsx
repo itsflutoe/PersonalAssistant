@@ -1,15 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { useClock } from './hooks.js'
+import { STATUS } from './flux.js'
 
 /* ---------- Text terminal (chat log) ---------- */
 
 export function TextTerminal({ messages, style }) {
   const bodyRef = useRef(null)
+  const stick = useRef(true) // follow new text only while the reader is at the bottom
 
   useEffect(() => {
     const el = bodyRef.current
-    if (el) el.scrollTop = el.scrollHeight
+    if (!el) return
+    if (messages[messages.length - 1]?.from === 'user') stick.current = true
+    if (stick.current) el.scrollTop = el.scrollHeight
   }, [messages])
+
+  const onScroll = () => {
+    const el = bodyRef.current
+    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+  }
 
   return (
     <section className="term text-term" style={style}>
@@ -17,7 +26,7 @@ export function TextTerminal({ messages, style }) {
         <span>TEXT TERMINAL</span>
         <i className="x">×</i>
       </header>
-      <div className="log" ref={bodyRef}>
+      <div className="log" ref={bodyRef} onScroll={onScroll} role="log" aria-live="polite">
         {messages.map((m) => (
           <div key={m.id} className={`msg ${m.from}`}>
             <div className="msg-label">{m.from === 'ai' ? 'Received text (AI)' : 'Sent text (user)'}</div>
@@ -42,7 +51,8 @@ const TOOLS = [
   <g key="4"><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" /></g>,
 ]
 
-export function CommandTerminal({ onSubmit, style }) {
+export function CommandTerminal({ onSubmit, onMic, status = 'ready', autoFocus = true, style }) {
+  const st = STATUS[status]
   const [value, setValue] = useState('')
   const [active, setActive] = useState(0)
   const hist = useRef([])
@@ -52,23 +62,29 @@ export function CommandTerminal({ onSubmit, style }) {
   const send = () => {
     const v = value.trim()
     if (!v) return
+    const accepted = onSubmit(v)
+    if (accepted === false) return // a request is still running: keep the text instead of losing it
     hist.current.unshift(v)
     hIdx.current = -1
-    onSubmit(v)
     setValue('')
   }
 
   const onKey = (e) => {
-    if (e.key === 'Enter') send()
-    if (e.key === 'ArrowUp') {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
       e.preventDefault()
-      hIdx.current = Math.min(hIdx.current + 1, hist.current.length - 1)
-      if (hist.current[hIdx.current]) setValue(hist.current[hIdx.current])
-    }
-    if (e.key === 'ArrowDown') {
+      send()
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      hIdx.current = Math.max(hIdx.current - 1, -1)
-      setValue(hIdx.current === -1 ? '' : hist.current[hIdx.current])
+      if (hIdx.current < hist.current.length - 1) {
+        hIdx.current++
+        setValue(hist.current[hIdx.current])
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (hIdx.current > -1) {
+        hIdx.current--
+        setValue(hIdx.current === -1 ? '' : hist.current[hIdx.current])
+      }
     }
   }
 
@@ -84,7 +100,17 @@ export function CommandTerminal({ onSubmit, style }) {
       </header>
 
       <div className="toolbar">
-        <i className="tb-dot" />
+        <button
+          className={status === 'listening' ? 'tool mic live' : 'tool mic'}
+          onClick={onMic}
+          aria-label={status === 'processing' ? 'Cancel request' : 'Voice input'}
+          title={status === 'processing' ? 'Cancel request' : 'Voice input'}
+        >
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+          </svg>
+        </button>
         {TOOLS.map((p, i) => (
           <button
             key={i}
@@ -98,6 +124,10 @@ export function CommandTerminal({ onSubmit, style }) {
           </button>
         ))}
         <span className="tb-spacer" />
+        <span className="status-badge" style={{ color: st.color }} role="status">
+          <i style={{ background: st.color }} />
+          {st.label}
+        </span>
         <span className="tb-meter">
           {Array.from({ length: 8 }, (_, i) => (
             <i key={i} style={{ animationDelay: `${i * 0.12}s` }} />
@@ -117,7 +147,7 @@ export function CommandTerminal({ onSubmit, style }) {
             onKeyDown={onKey}
             autoComplete="off"
             spellCheck="false"
-            autoFocus
+            autoFocus={autoFocus}
           />
           <button className="submit" onClick={send}>SUBMIT</button>
         </div>
