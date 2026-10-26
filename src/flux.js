@@ -21,7 +21,7 @@ export const STATUS = {
 export async function askGroq(history) {
   const key = import.meta.env.VITE_GROQ_API_KEY
   if (!key) {
-    throw new Error('No Groq API key found. Add VITE_GROQ_API_KEY to a .env file and restart.')
+    throw new Error('System error, core hasnt loaded. Check core if fully loadedd.')
   }
 
   const res = await fetch(ENDPOINT, {
