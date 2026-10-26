@@ -6,19 +6,11 @@ import { STATUS } from './flux.js'
 
 export function TextTerminal({ messages, style }) {
   const bodyRef = useRef(null)
-  const stick = useRef(true) // follow new text only while the reader is at the bottom
 
   useEffect(() => {
     const el = bodyRef.current
-    if (!el) return
-    if (messages[messages.length - 1]?.from === 'user') stick.current = true
-    if (stick.current) el.scrollTop = el.scrollHeight
+    if (el) el.scrollTop = el.scrollHeight
   }, [messages])
-
-  const onScroll = () => {
-    const el = bodyRef.current
-    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
-  }
 
   return (
     <section className="term text-term" style={style}>
@@ -26,7 +18,7 @@ export function TextTerminal({ messages, style }) {
         <span>TEXT TERMINAL</span>
         <i className="x">×</i>
       </header>
-      <div className="log" ref={bodyRef} onScroll={onScroll} role="log" aria-live="polite">
+      <div className="log" ref={bodyRef}>
         {messages.map((m) => (
           <div key={m.id} className={`msg ${m.from}`}>
             <div className="msg-label">{m.from === 'ai' ? 'Received text (AI)' : 'Sent text (user)'}</div>
@@ -62,29 +54,23 @@ export function CommandTerminal({ onSubmit, onMic, status = 'ready', autoFocus =
   const send = () => {
     const v = value.trim()
     if (!v) return
-    const accepted = onSubmit(v)
-    if (accepted === false) return // a request is still running: keep the text instead of losing it
     hist.current.unshift(v)
     hIdx.current = -1
+    onSubmit(v)
     setValue('')
   }
 
   const onKey = (e) => {
-    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+    if (e.key === 'Enter') send()
+    if (e.key === 'ArrowUp') {
       e.preventDefault()
-      send()
-    } else if (e.key === 'ArrowUp') {
+      hIdx.current = Math.min(hIdx.current + 1, hist.current.length - 1)
+      if (hist.current[hIdx.current]) setValue(hist.current[hIdx.current])
+    }
+    if (e.key === 'ArrowDown') {
       e.preventDefault()
-      if (hIdx.current < hist.current.length - 1) {
-        hIdx.current++
-        setValue(hist.current[hIdx.current])
-      }
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      if (hIdx.current > -1) {
-        hIdx.current--
-        setValue(hIdx.current === -1 ? '' : hist.current[hIdx.current])
-      }
+      hIdx.current = Math.max(hIdx.current - 1, -1)
+      setValue(hIdx.current === -1 ? '' : hist.current[hIdx.current])
     }
   }
 
@@ -103,8 +89,8 @@ export function CommandTerminal({ onSubmit, onMic, status = 'ready', autoFocus =
         <button
           className={status === 'listening' ? 'tool mic live' : 'tool mic'}
           onClick={onMic}
-          aria-label={status === 'processing' ? 'Cancel request' : 'Voice input'}
-          title={status === 'processing' ? 'Cancel request' : 'Voice input'}
+          aria-label="Voice input"
+          title="Voice input"
         >
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
             <rect x="9" y="3" width="6" height="11" rx="3" />
@@ -124,7 +110,7 @@ export function CommandTerminal({ onSubmit, onMic, status = 'ready', autoFocus =
           </button>
         ))}
         <span className="tb-spacer" />
-        <span className="status-badge" style={{ color: st.color }} role="status">
+        <span className="status-badge" style={{ color: st.color }}>
           <i style={{ background: st.color }} />
           {st.label}
         </span>
