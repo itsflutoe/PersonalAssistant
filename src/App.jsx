@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStageScale } from './hooks.js'
 import Orb from './Orb.jsx'
 import { Background, Overlays, OrbRings, Platform, Connectors, Reticle } from './Decor.jsx'
@@ -13,25 +13,12 @@ import {
   SpeechRecognitionCtor,
 } from './flux.js'
 
-// Static / slow-changing parts are memoised so the typewriter effect doesn't re-render them.
-const MOrb = memo(Orb)
-const MBackground = memo(Background)
-const MOverlays = memo(Overlays)
-const MOrbRings = memo(OrbRings)
-const MPlatform = memo(Platform)
-const MConnectors = memo(Connectors)
-const MReticle = memo(Reticle)
-const MDiag = memo(SystemDiagnostics)
-const MNet = memo(NetworkStatus)
-const MAnA = memo(AnalyticsA)
-const MAnB = memo(AnalyticsB)
-
 // desktop / laptop stage
 const W = 1408
 const H = 768
-// phone stage (stacked layout)
+// phone stage (portrait)
 const MW = 400
-const MH = 1096
+const MH = 1034
 
 let uid = 0
 const mk = (from, text, typing = false) => ({ id: ++uid, from, text, typing })
@@ -43,109 +30,66 @@ const INITIAL = [
   mk('user', 'Yes, please do.'),
 ]
 
-// positions are kept at module level so the memoised components get stable props
-const D = {
-  diag: { left: 70, top: 76, width: 154, height: 100 },
-  net: { left: 231, top: 76, width: 122, height: 100 },
-  anA: { left: 70, top: 184, width: 154, height: 136 },
-  anB: { left: 231, top: 184, width: 122, height: 136 },
-  text: { left: 1010, top: 65, width: 335, height: 262 },
-  cmd: { left: 298, top: 603, width: 812, height: 128 },
-}
-
-// Phone panels are magnified 1.25x (CSS zoom) so their small labels stay readable.
-// zoom also scales left/top/width/height, so those are divided by Z to land on the intended spot.
-const Z = 1.25
-const zp = (left, top, width, height) => ({
-  left: left / Z,
-  top: top / Z,
-  width: width / Z,
-  height: height / Z,
-  zoom: Z,
-})
+// positions for the stacked phone layout (desktop positions live in the JSX / CSS)
 const M = {
   orb: { left: -20, top: -20, transform: 'scale(0.82)', transformOrigin: 'center' },
   rings: { left: -30, top: -30, transform: 'scale(0.82)', transformOrigin: 'center' },
-  platform: { left: -60, top: 300, transform: 'scale(0.9)', transformOrigin: 'center' },
-  diag: zp(16, 340, 180, 110),
-  net: zp(210, 340, 170, 110),
-  anA: zp(16, 470, 180, 150),
-  anB: zp(210, 470, 170, 150),
-  text: zp(16, 640, 364, 220),
-  cmd: zp(16, 880, 364, 140),
+  platform: { left: -60, top: 340, transform: 'scale(0.75)', transformOrigin: 'center' },
+  text: { left: 12, top: 392, width: 376, height: 230 },
+  cmd: { left: 12, top: 634, width: 376, height: 128 },
+  diag: { left: 12, top: 776, width: 184, height: 100 },
+  net: { left: 204, top: 776, width: 184, height: 100 },
+  anA: { left: 12, top: 884, width: 184, height: 136 },
+  anB: { left: 204, top: 884, width: 184, height: 136 },
 }
 
-const READOUT = (
-  <>
-    <span>SYS · ONLINE</span>
-    <span>LAT · 12ms</span>
-    <span>PWR · 98%</span>
-  </>
-)
-
 export default function App() {
-  const { mobile, scale, wide } = useStageScale(W, H, MW)
+  const { scale, mobile } = useStageScale(W, H, MW)
   const [messages, setMessages] = useState(INITIAL)
-  const [status, setStatus] = useState('ready')
   const [pulse, setPulse] = useState(0)
-  const history = useRef([])
+  const [status, setStatus] = useState('ready') // ready | listening | processing | speaking
   const timer = useRef(null)
-  const typingRef = useRef(null)
-  const busyRef = useRef(false)
-  const abortRef = useRef(null)
-  const epochRef = useRef(0)
+  const history = useRef([]) // conversationHistory sent to Groq
   const recRef = useRef(null)
 
-  // cleanup on unmount
-  useEffect(() => () => {
-    clearInterval(timer.current)
-    stopSpeech()
-    abortRef.current?.abort()
-    try { recRef.current?.stop() } catch {}
-  }, [])
-
-  const flushTyping = useCallback(() => {
-    clearInterval(timer.current)
-    if (typingRef.current) {
-      const { id, full } = typingRef.current
-      setMessages((m) => m.map((x) => (x.id === id ? { ...x, text: full, typing: false } : x)))
-      typingRef.current = null
-    }
-  }, [])
-
-  const typeReply = useCallback(
-    (full) => {
-      flushTyping()
-      const reply = mk('ai', '', true)
-      typingRef.current = { id: reply.id, full }
-      setMessages((m) => [...m, reply])
-      const stepSize = Math.max(2, Math.ceil(full.length / 220)) // long replies finish in ~5s
-      let i = 0
-      timer.current = setInterval(() => {
-        i += stepSize
-        const done = i >= full.length
-        setMessages((m) =>
-          m.map((x) => (x.id === reply.id ? { ...x, text: full.slice(0, i), typing: !done } : x))
-        )
-        if (done) {
-          clearInterval(timer.current)
-          typingRef.current = null
-        }
-      }, 22)
+  useEffect(
+    () => () => {
+      clearInterval(timer.current)
+      stopSpeech()
+      recRef.current?.abort?.()
     },
-    [flushTyping]
+    []
   )
 
-  const run = useCallback(
-    async (text) => {
-      const epoch = epochRef.current
-      const ctrl = new AbortController()
-      abortRef.current = ctrl
-      busyRef.current = true
+  // adds an assistant message with the existing typewriter effect
+  const typeReply = useCallback((full) => {
+    const reply = mk('ai', '', true)
+    clearInterval(timer.current)
+    setMessages((m) => [...m, reply])
+    let i = 0
+    timer.current = setInterval(() => {
+      i += 2
+      setMessages((m) =>
+        m.map((x) => (x.id === reply.id ? { ...x, text: full.slice(0, i), typing: i < full.length } : x))
+      )
+      if (i >= full.length) clearInterval(timer.current)
+    }, 22)
+  }, [])
 
-      flushTyping()
+  const handleSubmit = useCallback(
+    async (text) => {
+      if (text.toLowerCase() === 'clear') {
+        stopSpeech()
+        clearInterval(timer.current)
+        history.current = []
+        setMessages([])
+        setStatus('ready')
+        return
+      }
+
+      unlockSpeech() // keeps TTS allowed on phones after the async API call
       stopSpeech()
-      unlockSpeech() // after stopSpeech, so phones keep permission to speak after the network call
+      clearInterval(timer.current)
 
       setMessages((m) => [...m, mk('user', text)])
       setPulse((p) => p + 1)
@@ -153,8 +97,7 @@ export default function App() {
       setStatus('processing')
 
       try {
-        const raw = await askGroq(history.current, ctrl.signal)
-        if (epoch !== epochRef.current) return // chat was cleared while waiting
+        const raw = (await askGroq(history.current)) || '...'
         history.current.push({ role: 'assistant', content: raw })
         typeReply(raw)
 
@@ -168,76 +111,45 @@ export default function App() {
           setStatus('ready')
         }
       } catch (err) {
-        if (epoch !== epochRef.current) return
         history.current.pop() // drop the failed user turn so history stays consistent
-        typeReply(err.name === 'AbortError' ? 'Request cancelled.' : `Connection fault: ${err.message}`)
+        typeReply(`Connection fault: ${err.message}`)
         setStatus('ready')
-      } finally {
-        if (epoch === epochRef.current) {
-          busyRef.current = false
-          if (abortRef.current === ctrl) abortRef.current = null
-        }
       }
     },
-    [typeReply, flushTyping]
-  )
-
-  // returns false when the message was not accepted (a request is still running)
-  const handleSubmit = useCallback(
-    (text) => {
-      if (text.toLowerCase() === 'clear') {
-        epochRef.current++
-        abortRef.current?.abort()
-        abortRef.current = null
-        busyRef.current = false
-        stopSpeech()
-        clearInterval(timer.current)
-        typingRef.current = null
-        history.current = []
-        setMessages([])
-        setStatus('ready')
-        return true
-      }
-      if (busyRef.current) return false
-      run(text)
-      return true
-    },
-    [run]
+    [typeReply]
   )
 
   const handleMic = useCallback(() => {
-    if (status === 'processing') {
-      abortRef.current?.abort()
+    if (status === 'listening') {
+      recRef.current?.stop()
       return
     }
-    if (status === 'listening') {
-      try { recRef.current?.stop() } catch {}
+    if (status === 'speaking') {
+      stopSpeech()
       setStatus('ready')
       return
     }
+    if (status === 'processing') return
     if (!SpeechRecognitionCtor) {
-      typeReply('Speech recognition is not supported on this device.')
+      typeReply('Voice input is not supported in this browser. Try Chrome, Edge or Safari.')
       return
     }
+
     unlockSpeech()
     stopSpeech()
     const rec = new SpeechRecognitionCtor()
     rec.lang = 'en-AU'
+    rec.continuous = false
     rec.interimResults = false
-    rec.maxAlternatives = 1
     rec.onstart = () => setStatus('listening')
     rec.onresult = (e) => {
-      const text = e.results[0]?.[0]?.transcript?.trim()
-      if (text) handleSubmit(text)
+      const t = e.results?.[0]?.[0]?.transcript?.trim()
+      if (t) handleSubmit(t)
     }
     rec.onerror = (e) => {
       setStatus('ready')
-      if (e.error === 'not-allowed') {
-        typeReply('Microphone permission denied. Allow mic access and try again.')
-      } else if (e.error === 'no-speech') {
-        typeReply('No speech detected. Please try again.')
-      } else if (e.error === 'network') {
-        typeReply('Voice recognition could not reach its speech service. Check your connection.')
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        typeReply('Microphone access was blocked. Please allow the microphone in your browser settings.')
       }
     }
     rec.onend = () => setStatus((s) => (s === 'listening' ? 'ready' : s))
@@ -249,61 +161,78 @@ export default function App() {
     }
   }, [status, handleSubmit, typeReply])
 
+  const stageW = mobile ? MW : W
+  const stageH = mobile ? MH : H
+
   const stageStyle = mobile
     ? { width: MW, height: MH, left: 0, top: 0, transformOrigin: '0 0', transform: `scale(${scale})` }
     : { width: W, height: H, transform: `translate(-50%, -50%) scale(${scale})` }
 
-  const stageClass = 'stage' + (mobile ? ' mobile' : '') + (wide ? ' fade-x' : '')
+  const stage = (
+    <div className={mobile ? 'stage mobile' : 'stage'} style={stageStyle}>
+      <Background slice={mobile} />
+      <Overlays />
 
-  return (
-    <div className={mobile ? 'viewport mobile' : 'viewport'}>
-      <div className="sizer" style={mobile ? { width: MW * scale, height: MH * scale } : undefined}>
-        <div className={stageClass} style={stageStyle}>
-          <MBackground slice={mobile} />
-          <MOverlays />
-
-          {/* centre piece */}
-          <MPlatform style={mobile ? M.platform : undefined} />
-          <MOrbRings style={mobile ? M.rings : undefined} />
-          <div className="orb-wrap" style={mobile ? M.orb : undefined}>
-            <MOrb pulse={pulse} mode={status} scale={scale * (mobile ? 0.82 : 1)} lite={mobile} />
-          </div>
-
-          {!mobile && <MConnectors />}
-          {!mobile && <div className="cluster-frame" />}
-
-          {/* panels */}
-          <MDiag style={mobile ? M.diag : D.diag} />
-          <MNet style={mobile ? M.net : D.net} />
-          <MAnA style={mobile ? M.anA : D.anA} />
-          <MAnB style={mobile ? M.anB : D.anB} />
-
-          {/* reticles (desktop only) */}
-          {!mobile && (
-            <MReticle size={150} cls="ret-left" dense>
-              {READOUT}
-            </MReticle>
-          )}
-          {!mobile && <MReticle size={178} cls="ret-right" />}
-          {!mobile && (
-            <div className="deco-lines left">
-              <span>▸ SECTOR 07 · LOCKED</span>
-              <span>▸ TRACE 0x4F2A19</span>
-              <span>▸ LINK ESTABLISHED</span>
-            </div>
-          )}
-
-          {/* terminals */}
-          <TextTerminal messages={messages} style={mobile ? M.text : D.text} />
-          <CommandTerminal
-            onSubmit={handleSubmit}
-            onMic={handleMic}
-            status={status}
-            autoFocus={!mobile}
-            style={mobile ? M.cmd : D.cmd}
-          />
-        </div>
+      {/* centre piece */}
+      <Platform style={mobile ? M.platform : undefined} />
+      <OrbRings style={mobile ? M.rings : undefined} />
+      <div className="orb-wrap" style={mobile ? M.orb : undefined}>
+        <Orb pulse={pulse} mode={status} />
       </div>
+
+      {!mobile && (
+        <>
+          <Connectors />
+          <div className="cluster-frame" />
+        </>
+      )}
+
+      {/* panels */}
+      <SystemDiagnostics style={mobile ? M.diag : { left: 70, top: 76, width: 154, height: 100 }} />
+      <NetworkStatus style={mobile ? M.net : { left: 231, top: 76, width: 122, height: 100 }} />
+      <AnalyticsA style={mobile ? M.anA : { left: 70, top: 184, width: 154, height: 136 }} />
+      <AnalyticsB style={mobile ? M.anB : { left: 231, top: 184, width: 122, height: 136 }} />
+
+      {/* reticles (desktop only) */}
+      {!mobile && (
+        <>
+          <Reticle size={150} cls="ret-left" dense>
+            <div className="ret-readout left">
+              <span>LAT 14.5995</span>
+              <span>LNG 120.9842</span>
+            </div>
+          </Reticle>
+          <Reticle size={178} cls="ret-right" />
+          <div className="deco-lines left">
+            <span>▸ SECTOR 07 · LOCKED</span>
+            <span>▸ TRACE 0x4F2A19</span>
+            <span>▸ LINK ESTABLISHED</span>
+          </div>
+        </>
+      )}
+
+      {/* terminals */}
+      <TextTerminal
+        messages={messages}
+        style={mobile ? M.text : { left: 1010, top: 65, width: 335, height: 262 }}
+      />
+      <CommandTerminal
+        onSubmit={handleSubmit}
+        onMic={handleMic}
+        status={status}
+        autoFocus={!mobile}
+        style={mobile ? M.cmd : { left: 298, top: 603, width: 812, height: 128 }}
+      />
     </div>
   )
+
+  if (mobile) {
+    return (
+      <div className="viewport mobile">
+        <div style={{ position: 'relative', width: stageW * scale, height: stageH * scale }}>{stage}</div>
+      </div>
+    )
+  }
+
+  return <div className="viewport">{stage}</div>
 }
