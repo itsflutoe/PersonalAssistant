@@ -43,11 +43,73 @@ const M = {
   anB: { left: 204, top: 884, width: 184, height: 136 },
 }
 
+/* ---------- Weather slash-command helpers (Open-Meteo, no API key) ---------- */
+
+function conditionLabel(code) {
+  const c = code ?? -1
+  if (c === 0) return 'CLEAR'
+  if (c >= 1 && c <= 3) return 'CLOUDS'
+  if (c === 45 || c === 48) return 'FOG'
+  if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) return 'RAIN'
+  if (c >= 71 && c <= 77) return 'SNOW'
+  if (c >= 95) return 'STORM'
+  return 'WEATHER'
+}
+
+async function fetchWeatherData(location) {
+  const geoRes = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
+  )
+  if (!geoRes.ok) throw new Error('Geocoding service unavailable')
+  const geo = await geoRes.json()
+  const place = geo?.results?.[0]
+  if (!place) throw new Error(`I could not find a location matching "${location}".`)
+
+  const { latitude, longitude, name, admin1, country } = place
+  const label = [name, admin1, country].filter(Boolean).join(', ')
+  const shortPlace = name || location
+
+  const wxRes = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weathercode`
+  )
+  if (!wxRes.ok) throw new Error('Weather service unavailable')
+  const wx = await wxRes.json()
+  const temp = wx?.current?.temperature_2m
+  const humidity = wx?.current?.relative_humidity_2m
+  const code = wx?.current?.weathercode
+  if (temp == null) throw new Error('Weather data was incomplete')
+
+  const condition = conditionLabel(code)
+  const tempStr = `${Math.round(temp)} degrees`
+  const humStr = humidity != null ? ` with ${Math.round(humidity)} percent humidity` : ''
+  const spoken = `Current conditions in ${label}: ${tempStr}${humStr}.`
+
+  return {
+    place: shortPlace,
+    label,
+    temp,
+    humidity,
+    code,
+    condition,
+    spoken,
+  }
+}
+
+function isWeatherCommand(text) {
+  const t = text.trim().toLowerCase()
+  return t.startsWith('/weather') || t.startsWith('/wheather')
+}
+
+function extractWeatherLocation(text) {
+  return text.trim().replace(/^\/(?:weather|wheather)\s*/i, '').trim()
+}
+
 export default function App() {
   const { scale, mobile } = useStageScale(W, H, MW)
   const [messages, setMessages] = useState(INITIAL)
   const [pulse, setPulse] = useState(0)
   const [status, setStatus] = useState('ready') // ready | listening | processing | speaking
+  const [weather, setWeather] = useState(null) // last /weather result for bottom-right panel
   const timer = useRef(null)
   const history = useRef([]) // conversationHistory sent to Groq
   const recRef = useRef(null)
@@ -93,8 +155,54 @@ export default function App() {
 
       setMessages((m) => [...m, mk('user', text)])
       setPulse((p) => p + 1)
-      history.current.push({ role: 'user', content: text })
       setStatus('processing')
+
+      // ---------- Weather slash command (bypasses Groq, updates panel) ----------
+      if (isWeatherCommand(text)) {
+        const location = extractWeatherLocation(text)
+        try {
+          if (!location) {
+            const msg = 'Please specify a location after the command. For example: /weather pandi.'
+            typeReply(msg)
+            speakText(msg, {
+              onStart: () => setStatus('speaking'),
+              onEnd: () => setStatus('ready'),
+            })
+            return
+          }
+          const data = await fetchWeatherData(location)
+          setWeather({
+            place: data.place,
+            temp: data.temp,
+            humidity: data.humidity,
+            code: data.code,
+            condition: data.condition,
+          })
+          history.current.push({ role: 'user', content: text })
+          history.current.push({ role: 'assistant', content: data.spoken })
+          typeReply(data.spoken)
+          const clean = cleanForSpeech(data.spoken)
+          if (clean) {
+            speakText(clean, {
+              onStart: () => setStatus('speaking'),
+              onEnd: () => setStatus('ready'),
+            })
+          } else {
+            setStatus('ready')
+          }
+        } catch (err) {
+          const msg = err?.message || 'Weather lookup failed.'
+          typeReply(msg)
+          speakText(msg, {
+            onStart: () => setStatus('speaking'),
+            onEnd: () => setStatus('ready'),
+          })
+        }
+        return
+      }
+
+      // ---------- Normal Groq path ----------
+      history.current.push({ role: 'user', content: text })
 
       try {
         const raw = (await askGroq(history.current)) || '...'
@@ -187,11 +295,14 @@ export default function App() {
         </>
       )}
 
-      {/* panels */}
+      {/* panels — only AnalyticsB receives weather; others unchanged */}
       <SystemDiagnostics style={mobile ? M.diag : { left: 70, top: 76, width: 154, height: 100 }} />
       <NetworkStatus style={mobile ? M.net : { left: 231, top: 76, width: 122, height: 100 }} />
       <AnalyticsA style={mobile ? M.anA : { left: 70, top: 184, width: 154, height: 136 }} />
-      <AnalyticsB style={mobile ? M.anB : { left: 231, top: 184, width: 122, height: 136 }} />
+      <AnalyticsB
+        style={mobile ? M.anB : { left: 231, top: 184, width: 122, height: 136 }}
+        weather={weather}
+      />
 
       {/* reticles (desktop only) */}
       {!mobile && (
