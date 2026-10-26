@@ -92,24 +92,137 @@ export function AnalyticsA({ style }) {
   )
 }
 
-export function AnalyticsB({ style }) {
-  const [on, setOn] = useState(0)
-  const series = useSeries(10, 1100, 40)
+/* ---------- Weather icon (WMO weathercode → simple SVG) ---------- */
+
+function WeatherIcon({ code, size = 36 }) {
+  const c = code ?? -1
+  // 0 clear, 1–3 partly cloudy, 45/48 fog, 51–67 rain/drizzle, 71–77 snow, 80–82 showers, 95–99 thunder
+  const isClear = c === 0
+  const isCloud = c >= 1 && c <= 3
+  const isFog = c === 45 || c === 48
+  const isRain = (c >= 51 && c <= 67) || (c >= 80 && c <= 82)
+  const isSnow = c >= 71 && c <= 77
+  const isStorm = c >= 95
+
+  const stroke = 'var(--c-bright, #9ceaff)'
+  const fill = 'rgba(120,220,255,0.25)'
+
   return (
-    <Panel title="FEATURE ANALYTICS" style={style}>
-      <div className="an-b">
-        <div className="an-b-top">
-          <Ring value={series[series.length - 1]} size={48} label="TH" spin />
-          <div className="vmeter">
-            <div className="vticks"><span>100</span><span>50</span><span>0</span></div>
-            <div className="vtrack"><i style={{ height: `${series[series.length - 1]}%` }} /></div>
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden>
+      {isClear && (
+        <>
+          <circle cx="24" cy="24" r="9" stroke={stroke} strokeWidth="2" fill={fill} />
+          {[0, 45, 90, 135].map((a) => (
+            <line
+              key={a}
+              x1="24"
+              y1="6"
+              x2="24"
+              y2="11"
+              stroke={stroke}
+              strokeWidth="2"
+              strokeLinecap="round"
+              transform={`rotate(${a} 24 24)`}
+            />
+          ))}
+        </>
+      )}
+      {(isCloud || isFog || isRain || isSnow || isStorm || c < 0) && !isClear && (
+        <path
+          d="M16 30h18a7 7 0 0 0 0-14 9 9 0 0 0-17-3 6 6 0 0 0-1 17z"
+          stroke={stroke}
+          strokeWidth="2"
+          fill={fill}
+        />
+      )}
+      {isRain && (
+        <>
+          <line x1="18" y1="34" x2="16" y2="40" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
+          <line x1="24" y1="34" x2="22" y2="40" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
+          <line x1="30" y1="34" x2="28" y2="40" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
+        </>
+      )}
+      {isSnow && (
+        <>
+          <circle cx="18" cy="36" r="1.5" fill={stroke} />
+          <circle cx="24" cy="38" r="1.5" fill={stroke} />
+          <circle cx="30" cy="36" r="1.5" fill={stroke} />
+        </>
+      )}
+      {isStorm && (
+        <path d="M26 28l-4 8h4l-2 6 8-10h-4l2-4z" fill={stroke} />
+      )}
+      {isFog && (
+        <>
+          <line x1="14" y1="34" x2="34" y2="34" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
+          <line x1="16" y1="38" x2="32" y2="38" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
+        </>
+      )}
+      {c < 0 && !isClear && (
+        <text x="24" y="28" textAnchor="middle" fill={stroke} fontSize="14" fontFamily="Share Tech Mono, monospace">
+          —
+        </text>
+      )}
+    </svg>
+  )
+}
+
+/** Bottom-right panel: weather (follows last /weather). Other panels unchanged. */
+export function AnalyticsB({ style, weather = null }) {
+  const place = weather?.place || '—'
+  const temp = weather?.temp
+  const humidity = weather?.humidity
+  const code = weather?.code
+  const condition = weather?.condition || 'AWAITING'
+
+  return (
+    <Panel title="LOCAL WEATHER" style={style}>
+      <div className="an-b" style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%' }}>
+        <div className="an-b-top" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid rgba(79,209,255,0.35)',
+              background: 'rgba(79,209,255,0.08)',
+              flexShrink: 0,
+            }}
+          >
+            <WeatherIcon code={code} size={36} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, minWidth: 0 }}>
+            <b style={{ fontSize: 18, color: 'var(--c-bright, #9ceaff)', textShadow: '0 0 6px rgba(80,210,255,0.8)' }}>
+              {temp != null ? `${Math.round(temp)}°` : '—'}
+            </b>
+            <small style={{ fontSize: 8, letterSpacing: 1, color: 'var(--c-dim, rgba(79,209,255,0.55))' }}>
+              {condition}
+            </small>
           </div>
         </div>
-        <div className="chips">
-          {['A', 'B', 'C', 'D'].map((c, i) => (
-            <button key={c} className={on === i ? 'chip on' : 'chip'} onClick={() => setOn(i)}>{c}</button>
-          ))}
+        <div
+          style={{
+            fontSize: 9,
+            letterSpacing: 0.6,
+            color: 'var(--c-dim, rgba(79,209,255,0.55))',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={place}
+        >
+          {place}
         </div>
+        {humidity != null && (
+          <div className="bar-row" style={{ marginTop: 2 }}>
+            <span>HUM</span>
+            <div className="bar">
+              <i style={{ width: `${Math.min(100, Math.max(0, humidity))}%` }} />
+            </div>
+          </div>
+        )}
       </div>
     </Panel>
   )
