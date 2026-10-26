@@ -1,12 +1,5 @@
-// FLUX backend: Groq chat, speech input (STT) and speech output (TTS).
-
-export const MODEL = 'qwen/qwen3.8-27b'
-const ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
-
-const SYSTEM_PROMPT =
-  'You are Flux, an articulate, sharp, concise and helpful AI companion. ' +
-  'Keep replies short and conversational because they are spoken aloud. ' +
-  'Do not use markdown, lists, asterisks or emojis.'
+// FLUX client: calls our own /api/chat proxy (which holds the Groq key),
+// plus speech input (STT) and speech output (TTS).
 
 export const STATUS = {
   ready: { label: 'SYSTEM READY', color: '#00f2ff' },
@@ -15,47 +8,72 @@ export const STATUS = {
   speaking: { label: 'SPEAKING...', color: '#00ff88' },
 }
 
-/* ---------- Groq ---------- */
+const REQUEST_TIMEOUT = 30000
 
-export async function askGroq(history) {
-  const key = import.meta.env.VITE_GROQ_API_KEY
-  if (!key) {
-    throw new Error('No Groq API key found. Add VITE_GROQ_API_KEY to a .env file and restart.')
-  }
+// Removes <think> blocks, including one that was cut off before it closed.
+const stripThink = (t) =>
+  t.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<think>[\s\S]*$/, '').trim()
 
-  const res = await fetch(ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: import.meta.env.VITE_GROQ_MODEL || MODEL,
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history.slice(-20)],
-      temperature: 0.7,
-      max_tokens: 600,
-    }),
-  })
+/* ---------- chat ---------- */
 
-  if (!res.ok) {
-    let detail = `${res.status} ${res.statusText}`
+export async function askGroq(history, signal) {
+  const ctrl = new AbortController()
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    ctrl.abort()
+  }, REQUEST_TIMEOUT)
+  const onAbort = () => ctrl.abort()
+  signal?.addEventListener('abort', onAbort)
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history.slice(-20) }),
+      signal: ctrl.signal,
+    })
+
+    let data = null
     try {
-      const j = await res.json()
-      if (j?.error?.message) detail = j.error.message
+      data = await res.json()
     } catch {
-      /* ignore */
+      /* non-JSON body */
     }
-    throw new Error(detail)
-  }
 
-  const data = await res.json()
-  const raw = data?.choices?.[0]?.message?.content ?? ''
-  // Some Qwen models emit <think> blocks; they should never be shown or spoken.
-  return raw.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+    if (!res.ok) {
+      throw new Error(
+        data?.error?.message ||
+          (res.status === 404
+            ? 'The /api/chat backend was not found. Deploy the api folder or use npm run dev.'
+            : `${res.status} ${res.statusText}`)
+      )
+    }
+
+    const choice = data?.choices?.[0]
+    const raw = stripThink(choice?.message?.content ?? '')
+    if (!raw) {
+      throw new Error(
+        choice?.finish_reason === 'length'
+          ? 'The reply was cut off before it finished. Try a shorter question.'
+          : 'The model returned an empty reply.'
+      )
+    }
+    return raw
+  } catch (e) {
+    // A user cancel is rethrown as-is (name "AbortError"); App.jsx shows "Request cancelled."
+    if (e.name === 'AbortError' && timedOut) throw new Error('The request timed out. Please try again.')
+    throw e
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', onAbort)
+  }
 }
 
 /* ---------- text cleaner for TTS ---------- */
 
 export function cleanForSpeech(text) {
-  return text
-    .replace(/<think>[\s\S]*?<\/think>/g, '')
+  return stripThink(text)
     .replace(/[*_#~`]/g, '')
     .replace(/\[.*?\]/g, '')
     .replace(/\s+/g, ' ')
@@ -105,10 +123,46 @@ export function speakText(text, { onStart, onEnd } = {}) {
   if (auVoice) utterance.voice = auVoice
   utterance.lang = 'en-AU'
 
-  utterance.onstart = () => token === my && onStart?.()
-  utterance.onend = () => token === my && onEnd?.()
-  utterance.onerror = () => token === my && onEnd?.()
-  synth.speak(utterance)
+  let started = false
+  let done = false
+  let keepAlive
+  let startGuard
+
+  const finish = () => {
+    if (done) return
+    done = true
+    clearInterval(keepAlive)
+    clearTimeout(startGuard)
+    if (token === my) onEnd?.()
+  }
+
+  utterance.onstart = () => {
+    started = true
+    clearTimeout(startGuard)
+    if (token === my) onStart?.()
+    // Chrome silently stops long utterances after ~15s unless nudged.
+    keepAlive = setInterval(() => {
+      if (synth.speaking && !synth.paused) {
+        synth.pause()
+        synth.resume()
+      }
+    }, 10000)
+  }
+  utterance.onend = finish
+  utterance.onerror = finish
+
+  // Small gap after cancel(): speaking immediately after cancel() fails in some Chrome/Edge versions.
+  setTimeout(() => {
+    if (token !== my) return
+    synth.speak(utterance)
+    // If speech never begins (blocked by the browser), do not leave the HUD stuck.
+    startGuard = setTimeout(() => {
+      if (!started) {
+        synth.cancel()
+        finish()
+      }
+    }, 6000)
+  }, 60)
 }
 
 /* ---------- speech input (en-AU, single shot) ---------- */
