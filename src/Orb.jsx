@@ -63,6 +63,7 @@ export default function Orb({ pulse, mode = 'ready' }) {
       let drive = 0.05 + 0.04 * Math.sin(t * 1.6)
       let spin = 1
       let grow = 0
+      let wave = 0.08 // particle surface ripple strength
       if (m === 'listening') {
         drive = 0.32 + 0.1 * Math.sin(t * 5.5)
         spin = 1.6
@@ -71,20 +72,29 @@ export default function Orb({ pulse, mode = 'ready' }) {
         drive = 0.16 + 0.1 * Math.sin(t * 9)
         spin = 3
       } else if (m === 'speaking') {
-        drive = 0.2 + 0.3 * Math.abs(Math.sin(t * 11) * Math.sin(t * 3.7) + 0.3 * Math.sin(t * 23))
-        spin = 1.4
-        grow = 0.03
+        // Exaggerated but still clean: stronger breath, reactive waveform, more spin & size
+        drive =
+          0.38 +
+          0.48 *
+            Math.abs(
+              Math.sin(t * 12) * Math.sin(t * 4.2) + 0.35 * Math.sin(t * 22)
+            )
+        spin = 2.15
+        grow = 0.1
+        wave = 0.14
       }
       angle += dt * 0.28 * spin
       const pu = Math.max(pulseRef.current, drive)
-      const R = R0 * (1 + grow + pu * 0.04)
+      const R = R0 * (1 + grow + pu * (m === 'speaking' ? 0.07 : 0.04))
 
       ctx.globalCompositeOperation = 'source-over'
       ctx.clearRect(0, 0, SIZE, SIZE)
       ctx.globalCompositeOperation = 'lighter'
 
+      // outer glow — brighter when speaking
+      const glowAlpha = m === 'speaking' ? 0.38 + pu * 0.35 : 0.28 + pu * 0.25
       let g = ctx.createRadialGradient(c, c, 20, c, c, 215)
-      g.addColorStop(0, `rgba(40,150,255,${0.28 + pu * 0.25})`)
+      g.addColorStop(0, `rgba(40,150,255,${glowAlpha})`)
       g.addColorStop(0.55, 'rgba(20,90,200,0.12)')
       g.addColorStop(1, 'rgba(0,40,120,0)')
       ctx.fillStyle = g
@@ -92,8 +102,10 @@ export default function Orb({ pulse, mode = 'ready' }) {
 
       const ay = angle
       const ax = 0.38
-      const cy = Math.cos(ay), sy = Math.sin(ay)
-      const cx = Math.cos(ax), sx = Math.sin(ax)
+      const cy = Math.cos(ay),
+        sy = Math.sin(ay)
+      const cx = Math.cos(ax),
+        sx = Math.sin(ax)
 
       for (let i = 0; i < N; i++) {
         const p = base[i]
@@ -101,8 +113,10 @@ export default function Orb({ pulse, mode = 'ready' }) {
           Math.sin(p.x * 3.1 + t * 1.15) *
           Math.cos(p.y * 3.4 - t * 0.9) *
           Math.sin(p.z * 3.0 + t * 0.7)
-        const d = 1 + 0.16 * n + pu * 0.08 * Math.sin(p.y * 8 - t * 6)
-        let x = p.x * d, y = p.y * d, z = p.z * d
+        const d = 1 + 0.16 * n + pu * wave * Math.sin(p.y * 8 - t * 6)
+        let x = p.x * d,
+          y = p.y * d,
+          z = p.z * d
         let x1 = x * cy + z * sy
         let z1 = -x * sy + z * cy
         let y1 = y * cx - z1 * sx
@@ -119,14 +133,15 @@ export default function Orb({ pulse, mode = 'ready' }) {
         ctx.fill()
       }
 
-      // bright core
-      g = ctx.createRadialGradient(c, c, 0, c, c, 22 + pu * 8)
+      // bright core — larger & hotter while speaking
+      const coreR = m === 'speaking' ? 26 + pu * 14 : 22 + pu * 8
+      g = ctx.createRadialGradient(c, c, 0, c, c, coreR)
       g.addColorStop(0, '#ffffff')
       g.addColorStop(0.35, 'rgba(160,230,255,0.9)')
       g.addColorStop(1, 'transparent')
       ctx.fillStyle = g
       ctx.beginPath()
-      ctx.arc(c, c, 30 + pu * 10, 0, Math.PI * 2)
+      ctx.arc(c, c, coreR + 8, 0, Math.PI * 2)
       ctx.fill()
 
       raf = requestAnimationFrame(frame)
