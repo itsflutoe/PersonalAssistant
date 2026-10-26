@@ -43,6 +43,46 @@ const M = {
   anB: { left: 204, top: 884, width: 184, height: 136 },
 }
 
+/* ---------- Weather slash-command helpers (Open-Meteo, no API key) ---------- */
+
+async function fetchWeatherReply(location) {
+  const geoRes = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
+  )
+  if (!geoRes.ok) throw new Error('Geocoding service unavailable')
+  const geo = await geoRes.json()
+  const place = geo?.results?.[0]
+  if (!place) throw new Error(`I could not find a location matching "${location}".`)
+
+  const { latitude, longitude, name, admin1, country } = place
+  const label = [name, admin1, country].filter(Boolean).join(', ')
+
+  const wxRes = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m`
+  )
+  if (!wxRes.ok) throw new Error('Weather service unavailable')
+  const wx = await wxRes.json()
+  const temp = wx?.current?.temperature_2m
+  const humidity = wx?.current?.relative_humidity_2m
+  if (temp == null) throw new Error('Weather data was incomplete')
+
+  const tempStr = `${Math.round(temp)} degrees`
+  const humStr = humidity != null ? ` with ${Math.round(humidity)} percent humidity` : ''
+  return `Current conditions in ${label}: ${tempStr}${humStr}.`
+}
+
+function isWeatherCommand(text) {
+  const t = text.trim().toLowerCase()
+  return t.startsWith('/weather') || t.startsWith('/wheather')
+}
+
+function extractWeatherLocation(text) {
+  const trimmed = text.trim()
+  // strip leading /weather or /wheather (any case)
+  const withoutCmd = trimmed.replace(/^\/(?:weather|wheather)\s*/i, '').trim()
+  return withoutCmd
+}
+
 export default function App() {
   const { scale, mobile } = useStageScale(W, H, MW)
   const [messages, setMessages] = useState(INITIAL)
@@ -93,8 +133,48 @@ export default function App() {
 
       setMessages((m) => [...m, mk('user', text)])
       setPulse((p) => p + 1)
-      history.current.push({ role: 'user', content: text })
       setStatus('processing')
+
+      // ---------- Weather slash command (bypasses Groq) ----------
+      if (isWeatherCommand(text)) {
+        const location = extractWeatherLocation(text)
+        try {
+          if (!location) {
+            const msg = 'Please specify a location after the command. For example: /weather pandi.'
+            typeReply(msg)
+            speakText(msg, {
+              onStart: () => setStatus('speaking'),
+              onEnd: () => setStatus('ready'),
+            })
+            return
+          }
+          const reply = await fetchWeatherReply(location)
+          // optional: keep a light history entry so Flux still knows weather was asked
+          history.current.push({ role: 'user', content: text })
+          history.current.push({ role: 'assistant', content: reply })
+          typeReply(reply)
+          const clean = cleanForSpeech(reply)
+          if (clean) {
+            speakText(clean, {
+              onStart: () => setStatus('speaking'),
+              onEnd: () => setStatus('ready'),
+            })
+          } else {
+            setStatus('ready')
+          }
+        } catch (err) {
+          const msg = err?.message || 'Weather lookup failed.'
+          typeReply(msg)
+          speakText(msg, {
+            onStart: () => setStatus('speaking'),
+            onEnd: () => setStatus('ready'),
+          })
+        }
+        return
+      }
+
+      // ---------- Normal Groq path ----------
+      history.current.push({ role: 'user', content: text })
 
       try {
         const raw = (await askGroq(history.current)) || '...'
