@@ -1,97 +1,139 @@
 import { useEffect, useRef } from 'react'
 
-/* Simple animated holographic orb – canvas based for performance */
-export default function Orb({ pulse = 0, mode = 'ready', scale = 1, lite = false }) {
-  const canvasRef = useRef(null)
-  const raf = useRef(0)
-  const pulseRef = useRef(pulse)
-  pulseRef.current = pulse
+const SIZE = 440
+const R0 = 128
+const N = 2400
+const GOLDEN = Math.PI * (3 - Math.sqrt(5))
+
+// Pre-compute points on a sphere (fibonacci lattice).
+const base = Array.from({ length: N }, (_, i) => {
+  const y = 1 - (2 * (i + 0.5)) / N
+  const r = Math.sqrt(1 - y * y)
+  const th = i * GOLDEN
+  return { x: Math.cos(th) * r, y, z: Math.sin(th) * r, s: Math.random() }
+})
+
+// Orbiting bands of particles around the sphere.
+const bands = [
+  { tilt: 0.5, speed: 0.35, radius: 1.18, count: 420, spin: 0.3 },
+  { tilt: -0.9, speed: -0.25, radius: 1.3, count: 360, spin: 1.1 },
+  { tilt: 1.3, speed: 0.18, radius: 1.12, count: 300, spin: 2.2 },
+].map((b) => ({
+  ...b,
+  pts: Array.from({ length: b.count }, () => ({
+    a: Math.random() * Math.PI * 2,
+    j: (Math.random() - 0.5) * 0.09,
+    s: Math.random(),
+  })),
+}))
+
+export default function Orb({ pulse, mode = 'ready' }) {
+  const ref = useRef(null)
+  const pulseRef = useRef(0)
+  const modeRef = useRef(mode)
 
   useEffect(() => {
-    const canvas = canvasRef.current
+    pulseRef.current = 1
+  }, [pulse])
+
+  useEffect(() => {
+    modeRef.current = mode
+  }, [mode])
+
+  useEffect(() => {
+    const canvas = ref.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
-    const dpr = Math.min(window.devicePixelRatio || 1, lite ? 1.5 : 2)
-    const size = lite ? 280 : 360
-    canvas.width = size * dpr
-    canvas.height = size * dpr
-    canvas.style.width = size + 'px'
-    canvas.style.height = size + 'px'
-    ctx.scale(dpr, dpr)
+    canvas.width = SIZE
+    canvas.height = SIZE
 
-    let t = 0
-    const colors = {
-      ready: ['#00f2ff', '#4fd1ff', '#0ea5e9'],
-      listening: ['#ff0055', '#ff4d7a', '#f43f5e'],
-      processing: ['#38bdf8', '#0ea5e9', '#0284c7'],
-      speaking: ['#00ff88', '#34d399', '#10b981'],
-    }
+    let raf
+    const c = SIZE / 2
+    const t0 = performance.now()
+    let last = t0
+    let angle = 0
 
-    const draw = () => {
-      t += 0.016
-      const cols = colors[mode] || colors.ready
-      ctx.clearRect(0, 0, size, size)
-      const cx = size / 2
-      const cy = size / 2
-      const baseR = size * 0.22
+    const frame = (now) => {
+      const t = (now - t0) / 1000
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+      const m = modeRef.current
+      pulseRef.current *= 0.965
 
-      // outer glow
-      const g = ctx.createRadialGradient(cx, cy, baseR * 0.3, cx, cy, baseR * 2.2)
-      g.addColorStop(0, cols[0] + '40')
-      g.addColorStop(0.5, cols[1] + '18')
+      let drive = 0.05 + 0.04 * Math.sin(t * 1.6)
+      let spin = 1
+      let grow = 0
+      if (m === 'listening') {
+        drive = 0.32 + 0.1 * Math.sin(t * 5.5)
+        spin = 1.6
+        grow = 0.08
+      } else if (m === 'processing') {
+        drive = 0.16 + 0.1 * Math.sin(t * 9)
+        spin = 3
+      } else if (m === 'speaking') {
+        drive = 0.2 + 0.3 * Math.abs(Math.sin(t * 11) * Math.sin(t * 3.7) + 0.3 * Math.sin(t * 23))
+        spin = 1.4
+        grow = 0.03
+      }
+      angle += dt * 0.28 * spin
+      const pu = Math.max(pulseRef.current, drive)
+      const R = R0 * (1 + grow + pu * 0.04)
+
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.clearRect(0, 0, SIZE, SIZE)
+      ctx.globalCompositeOperation = 'lighter'
+
+      let g = ctx.createRadialGradient(c, c, 20, c, c, 215)
+      g.addColorStop(0, `rgba(40,150,255,${0.28 + pu * 0.25})`)
+      g.addColorStop(0.55, 'rgba(20,90,200,0.12)')
+      g.addColorStop(1, 'rgba(0,40,120,0)')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, SIZE, SIZE)
+
+      const ay = angle
+      const ax = 0.38
+      const cy = Math.cos(ay), sy = Math.sin(ay)
+      const cx = Math.cos(ax), sx = Math.sin(ax)
+
+      for (let i = 0; i < N; i++) {
+        const p = base[i]
+        const n =
+          Math.sin(p.x * 3.1 + t * 1.15) *
+          Math.cos(p.y * 3.4 - t * 0.9) *
+          Math.sin(p.z * 3.0 + t * 0.7)
+        const d = 1 + 0.16 * n + pu * 0.08 * Math.sin(p.y * 8 - t * 6)
+        let x = p.x * d, y = p.y * d, z = p.z * d
+        let x1 = x * cy + z * sy
+        let z1 = -x * sy + z * cy
+        let y1 = y * cx - z1 * sx
+        let z2 = y * sx + z1 * cx
+        const depth = (z2 + 1.3) / 2.6
+        const f = 520 / (520 + z2 * R)
+        const px = c + x1 * R * f
+        const py = c + y1 * R * f
+        const a = (0.12 + depth * 0.85) * (0.55 + p.s * 0.6)
+        const sz = (0.5 + depth * 1.1) * (0.7 + p.s * 0.7)
+        ctx.beginPath()
+        ctx.arc(px, py, sz, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(120,220,255,${a})`
+        ctx.fill()
+      }
+
+      // bright core
+      g = ctx.createRadialGradient(c, c, 0, c, c, 22 + pu * 8)
+      g.addColorStop(0, '#ffffff')
+      g.addColorStop(0.35, 'rgba(160,230,255,0.9)')
       g.addColorStop(1, 'transparent')
       ctx.fillStyle = g
       ctx.beginPath()
-      ctx.arc(cx, cy, baseR * 2.2, 0, Math.PI * 2)
+      ctx.arc(c, c, 30 + pu * 10, 0, Math.PI * 2)
       ctx.fill()
 
-      // core
-      const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseR)
-      core.addColorStop(0, '#fff')
-      core.addColorStop(0.25, cols[0])
-      core.addColorStop(0.7, cols[1] + 'cc')
-      core.addColorStop(1, cols[2] + '00')
-      ctx.fillStyle = core
-      ctx.beginPath()
-      ctx.arc(cx, cy, baseR * (1 + Math.sin(t * 2) * 0.04 + (pulseRef.current % 2) * 0.02), 0, Math.PI * 2)
-      ctx.fill()
-
-      // rings
-      for (let i = 0; i < (lite ? 2 : 3); i++) {
-        const r = baseR * (1.4 + i * 0.35) + Math.sin(t * 1.5 + i) * 4
-        ctx.strokeStyle = cols[i % 3] + (lite ? '55' : '77')
-        ctx.lineWidth = 1.2
-        ctx.beginPath()
-        ctx.arc(cx, cy, r, 0, Math.PI * 2)
-        ctx.stroke()
-      }
-
-      // particles
-      if (!lite) {
-        for (let i = 0; i < 18; i++) {
-          const a = t * 0.6 + (i / 18) * Math.PI * 2
-          const rr = baseR * 1.6 + Math.sin(t + i) * 12
-          const x = cx + Math.cos(a) * rr
-          const y = cy + Math.sin(a) * rr
-          ctx.fillStyle = cols[i % 3] + 'aa'
-          ctx.beginPath()
-          ctx.arc(x, y, 1.4, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      }
-
-      raf.current = requestAnimationFrame(draw)
+      raf = requestAnimationFrame(frame)
     }
-    draw()
-    return () => cancelAnimationFrame(raf.current)
-  }, [mode, lite])
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+  }, [])
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="orb-canvas"
-      style={{ transform: `scale(${scale})` }}
-      aria-hidden
-    />
-  )
+  return <canvas ref={ref} className="orb-canvas" width={SIZE} height={SIZE} />
 }
