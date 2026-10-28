@@ -138,6 +138,22 @@ function titleCase(s) {
     .join(' ')
 }
 
+function isHttpsUrl(u) {
+  try {
+    return typeof u === 'string' && u.trim().toLowerCase().startsWith('https://')
+  } catch {
+    return false
+  }
+}
+
+function pageIsHttps() {
+  try {
+    return typeof location !== 'undefined' && location.protocol === 'https:'
+  } catch {
+    return true
+  }
+}
+
 async function fetchRadioStations(query) {
   const q = query.trim()
   if (!q) throw new Error('Specify a place or tag. Example: /rad philippines')
@@ -145,7 +161,7 @@ async function fetchRadioStations(query) {
   const country = titleCase(q)
   const params = new URLSearchParams({
     hidebroken: 'true',
-    limit: '24',
+    limit: '60',
     order: 'clickcount',
     reverse: 'true',
   })
@@ -160,7 +176,7 @@ async function fetchRadioStations(query) {
   if (!Array.isArray(list) || list.length === 0) {
     const p2 = new URLSearchParams({
       hidebroken: 'true',
-      limit: '24',
+      limit: '60',
       order: 'clickcount',
       reverse: 'true',
       name: q,
@@ -176,19 +192,38 @@ async function fetchRadioStations(query) {
     throw new Error(`No working radio signals found for "${q}".`)
   }
 
-  return list
-    .filter((s) => s.url_resolved || s.url)
-    .slice(0, 20)
-    .map((s) => ({
-      id: s.stationuuid,
-      name: s.name?.trim() || 'Unknown station',
-      url: s.url_resolved || s.url,
-      country: s.country || '',
-      tags: s.tags || '',
-      bitrate: s.bitrate || 0,
-      codec: s.codec || '',
-      favicon: s.favicon || '',
-    }))
+  const mapped = list
+    .map((s) => {
+      const url = (s.url_resolved || s.url || '').trim()
+      return {
+        id: s.stationuuid,
+        name: s.name?.trim() || 'Unknown station',
+        url,
+        country: s.country || '',
+        tags: s.tags || '',
+        bitrate: s.bitrate || 0,
+        codec: s.codec || '',
+        secure: isHttpsUrl(url),
+      }
+    })
+    .filter((s) => s.url)
+
+  // On HTTPS pages (Vercel), browsers block plain HTTP audio (mixed content).
+  const requireHttps = pageIsHttps()
+  let usable = requireHttps ? mapped.filter((s) => s.secure) : mapped
+
+  // Prefer higher bitrate among secure streams
+  usable = usable.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))
+
+  if (usable.length === 0) {
+    throw new Error(
+      requireHttps
+        ? `Found stations for "${q}", but none expose an HTTPS stream. Browsers block insecure HTTP audio on this site.`
+        : `No playable streams found for "${q}".`
+    )
+  }
+
+  return usable.slice(0, 20)
 }
 
 /* ---------- Radio side panel ---------- */
@@ -210,7 +245,7 @@ function RadioSidePanel({ open, minimized, query, stations, playingId, onSelect,
       </header>
       {!minimized && (
         <div className="radio-panel-body">
-          <div className="radio-panel-meta">{stations.length} signals · select to transmit</div>
+          <div className="radio-panel-meta">{stations.length} HTTPS signals · select to transmit</div>
           <ul className="radio-list">
             {stations.map((s) => (
               <li key={s.id}>
@@ -221,7 +256,9 @@ function RadioSidePanel({ open, minimized, query, stations, playingId, onSelect,
                 >
                   <span className="ri-name">{s.name}</span>
                   <span className="ri-meta">
-                    {[s.bitrate ? `${s.bitrate}k` : null, s.codec, s.country].filter(Boolean).join(' · ')}
+                    {[s.bitrate ? `${s.bitrate}k` : null, s.codec, s.secure ? 'HTTPS' : 'HTTP', s.country]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </span>
                 </button>
               </li>
@@ -240,8 +277,7 @@ export default function App() {
   const [status, setStatus] = useState('ready')
   const [weather, setWeather] = useState(null)
 
-  // radio state
-  const [globeMode, setGlobeMode] = useState('idle') // idle | scanning | locked
+  const [globeMode, setGlobeMode] = useState('idle')
   const [radioQuery, setRadioQuery] = useState('')
   const [stations, setStations] = useState([])
   const [panelOpen, setPanelOpen] = useState(false)
@@ -277,18 +313,34 @@ export default function App() {
     }, 22)
   }, [])
 
-  const playStation = useCallback((station) => {
-    if (!audioRef.current) audioRef.current = new Audio()
-    const a = audioRef.current
-    a.pause()
-    a.src = station.url
-    a.play().catch(() => {
-      typeReply(`Unable to open stream for ${station.name}.`)
-    })
-    setPlayingId(station.id)
-    // register click with Radio Browser (optional, helps ranking)
-    fetch(`${RB}/json/url/${station.id}`, { headers: { 'User-Agent': 'FluxHUD/1.0' } }).catch(() => {})
-  }, [typeReply])
+  const playStation = useCallback(
+    (station) => {
+      if (pageIsHttps() && !isHttpsUrl(station.url)) {
+        typeReply(
+          `Stream blocked: ${station.name} only offers HTTP. This site is HTTPS, so the browser refuses insecure audio.`
+        )
+        return
+      }
+      if (!audioRef.current) audioRef.current = new Audio()
+      const a = audioRef.current
+      a.pause()
+      a.crossOrigin = 'anonymous'
+      a.src = station.url
+      a.play()
+        .then(() => setPlayingId(station.id))
+        .catch(() => {
+          setPlayingId(null)
+          typeReply(
+            `Unable to open stream for ${station.name}. The station may be offline or blocking playback.`
+          )
+        })
+      // optional click count — ignore 404s
+      fetch(`${RB}/json/url/${encodeURIComponent(station.id)}`, {
+        headers: { 'User-Agent': 'FluxHUD/1.0' },
+      }).catch(() => {})
+    },
+    [typeReply]
+  )
 
   const stopRadio = useCallback(() => {
     audioRef.current?.pause?.()
@@ -314,7 +366,6 @@ export default function App() {
       setPulse((p) => p + 1)
       setStatus('processing')
 
-      // ---------- /rad (Radio Browser) ----------
       if (isRadCommand(text)) {
         const q = extractRadQuery(text)
         try {
@@ -335,7 +386,7 @@ export default function App() {
           setGlobeMode('locked')
           setPanelOpen(true)
           setPanelMin(false)
-          const msg = `Signal lock on ${q}: ${list.length} working stations. Open the signal panel or tap the globe to choose.`
+          const msg = `Signal lock on ${q}: ${list.length} HTTPS stations ready. Pick one from the signal panel.`
           history.current.push({ role: 'user', content: text })
           history.current.push({ role: 'assistant', content: msg })
           typeReply(msg)
@@ -355,7 +406,6 @@ export default function App() {
         return
       }
 
-      // ---------- Weather ----------
       if (isWeatherCommand(text)) {
         const location = extractWeatherLocation(text)
         try {
@@ -397,7 +447,6 @@ export default function App() {
         return
       }
 
-      // ---------- Groq ----------
       history.current.push({ role: 'user', content: text })
       try {
         const raw = (await askGroq(history.current)) || '...'
