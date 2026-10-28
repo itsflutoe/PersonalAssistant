@@ -108,26 +108,21 @@ export function Background({ slice = false }) {
         ))}
       </g>
 
-      {/* haze over skyline */}
       <rect x="0" y="330" width="1408" height="160" fill="#0b3b5c" opacity="0.18" filter="url(#blur14)" />
       <ellipse cx="703" cy="380" rx="420" ry="260" fill="url(#centerglow)" />
 
-      {/* curved window ribs */}
       <g opacity="0.85">
         {[110, 330, 560, 850, 1080, 1300].map((x, i) => (
           <rect key={i} x={x - 9} y="0" width="18" height="500" fill="#010509" filter="url(#blur3)" />
         ))}
       </g>
 
-      {/* ceiling */}
       <rect x="0" y="0" width="1408" height="62" fill="#01060b" opacity="0.88" />
       <rect x="0" y="52" width="1408" height="14" fill="#06202f" opacity="0.5" filter="url(#blur8)" />
 
-      {/* floor */}
       <rect x="0" y="498" width="1408" height="270" fill="url(#floor)" />
       <ellipse cx="703" cy="600" rx="360" ry="60" fill="#1388d0" opacity="0.18" filter="url(#blur14)" />
 
-      {/* consoles */}
       <g filter="url(#blur3)">
         <polygon points="0,470 340,462 420,520 0,560" fill="#06141f" />
         <polygon points="1408,470 1070,460 990,520 1408,560" fill="#06141f" />
@@ -139,7 +134,6 @@ export function Background({ slice = false }) {
   )
 }
 
-/* Faint perspective grid + lens flare + vignette overlays. */
 export function Overlays() {
   return (
     <>
@@ -151,7 +145,6 @@ export function Overlays() {
   )
 }
 
-/* Concentric rings, ticks and rotating arcs around the orb. */
 export function OrbRings({ style }) {
   const ticks = useMemo(() => {
     const out = []
@@ -196,7 +189,6 @@ export function OrbRings({ style }) {
   )
 }
 
-/* Glowing platform under the orb. */
 export function Platform({ style }) {
   return (
     <svg className="platform" viewBox="-260 -50 520 100" style={style}>
@@ -216,7 +208,6 @@ export function Platform({ style }) {
   )
 }
 
-/* Lines linking the side panels to the orb. */
 export function Connectors() {
   return (
     <svg className="connectors" viewBox="0 0 1408 768">
@@ -234,7 +225,6 @@ export function Connectors() {
   )
 }
 
-/* Rotating targeting reticle with tick marks. */
 export function Reticle({ size, cls = '', dense = false, children }) {
   const half = size / 2
   const ticks = useMemo(() => {
@@ -285,5 +275,66 @@ export function Reticle({ size, cls = '', dense = false, children }) {
       </svg>
       {children}
     </div>
+  )
+}
+
+/** Holographic signal globe — right reticle zone. Modes: idle | scanning | locked */
+export function SignalGlobe({
+  size = 178,
+  mode = 'idle',
+  label = '',
+  onClick,
+  playing = false,
+}) {
+  const half = size / 2
+  const scanClass = mode === 'scanning' ? 'globe-scan' : mode === 'locked' ? 'globe-locked' : ''
+  const clickable = mode === 'locked' || (mode === 'idle' && playing)
+
+  return (
+    <button
+      type="button"
+      className={`signal-globe ${scanClass} ${playing ? 'on-air' : ''} ${clickable ? 'clickable' : ''}`}
+      style={{ width: size, height: size }}
+      onClick={clickable ? onClick : undefined}
+      title={clickable ? 'Open signal list' : 'Run /rad <place> to scan'}
+      aria-label="Signal globe"
+    >
+      <svg viewBox={`${-half} ${-half} ${size} ${size}`} width={size} height={size}>
+        <defs>
+          <radialGradient id="globeCore" cx="0.35" cy="0.35" r="0.7">
+            <stop offset="0" stopColor="#b8f0ff" stopOpacity="0.55" />
+            <stop offset="0.45" stopColor="#1a6fa0" stopOpacity="0.35" />
+            <stop offset="1" stopColor="#04304a" stopOpacity="0.15" />
+          </radialGradient>
+        </defs>
+        <g stroke="#62d6ff" fill="none" strokeWidth="0.8">
+          <circle r={half * 0.98} opacity="0.3" />
+          <circle r={half * 0.72} fill="url(#globeCore)" stroke="#7fe3ff" strokeWidth="1.2" opacity="0.9" />
+          {/* latitude lines */}
+          <ellipse rx={half * 0.72} ry={half * 0.22} opacity="0.45" className={mode === 'scanning' ? 'spin-med' : 'spin-slow'} />
+          <ellipse rx={half * 0.72} ry={half * 0.42} opacity="0.35" className={mode === 'scanning' ? 'spin-rev' : 'spin-slow'} />
+          {/* longitude */}
+          <ellipse rx={half * 0.28} ry={half * 0.72} opacity="0.4" className={mode === 'scanning' ? 'spin-med' : 'spin-rev'} />
+          <ellipse rx={half * 0.5} ry={half * 0.72} opacity="0.3" className={mode === 'scanning' ? 'spin-rev' : 'spin-slow'} />
+          {/* scan ring */}
+          <circle
+            r={half * 0.85}
+            strokeDasharray="4 6"
+            opacity={mode === 'scanning' ? 0.95 : 0.4}
+            className={mode === 'scanning' ? 'spin-med' : 'spin-slow'}
+          />
+          <circle r={half * 0.12} fill="#9ff0ff" stroke="none" opacity="0.95" />
+          {mode === 'scanning' && (
+            <circle r={half * 0.55} className="pulse-ring" strokeWidth="1.5" opacity="0.8" />
+          )}
+        </g>
+      </svg>
+      <div className="globe-caption">
+        <span className="globe-mode">
+          {mode === 'scanning' ? 'SCANNING…' : playing ? 'ON AIR' : mode === 'locked' ? 'SIGNALS LOCKED' : 'SIGNAL GLOBE'}
+        </span>
+        {label ? <span className="globe-label">{label}</span> : null}
+      </div>
+    </button>
   )
 }
