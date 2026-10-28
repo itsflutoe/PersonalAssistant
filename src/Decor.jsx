@@ -10,7 +10,6 @@ function mulberry(seed) {
   }
 }
 
-/* Blurred control-room scene: city skyline, window beams, consoles. */
 export function Background({ slice = false }) {
   const scene = useMemo(() => {
     const r = mulberry(7)
@@ -278,7 +277,7 @@ export function Reticle({ size, cls = '', dense = false, children }) {
   )
 }
 
-/** Holographic signal globe — right reticle zone. Modes: idle | scanning | locked */
+/** Earth-like signal globe + satellite + play indicator. Modes: idle | scanning | locked */
 export function SignalGlobe({
   size = 178,
   mode = 'idle',
@@ -287,13 +286,15 @@ export function SignalGlobe({
   playing = false,
 }) {
   const half = size / 2
-  const scanClass = mode === 'scanning' ? 'globe-scan' : mode === 'locked' ? 'globe-locked' : ''
+  const R = half * 0.68
+  const spinLand = mode === 'scanning' ? 'spin-med' : 'spin-slow'
+  const spinSat = mode === 'scanning' ? 'sat-orbit-fast' : 'sat-orbit'
   const clickable = mode === 'locked' || (mode === 'idle' && playing)
 
   return (
     <button
       type="button"
-      className={`signal-globe ${scanClass} ${playing ? 'on-air' : ''} ${clickable ? 'clickable' : ''}`}
+      className={`signal-globe ${mode === 'scanning' ? 'globe-scan' : ''} ${playing ? 'on-air' : ''} ${clickable ? 'clickable' : ''}`}
       style={{ width: size, height: size }}
       onClick={clickable ? onClick : undefined}
       title={clickable ? 'Open signal list' : 'Run /rad <place> to scan'}
@@ -301,37 +302,139 @@ export function SignalGlobe({
     >
       <svg viewBox={`${-half} ${-half} ${size} ${size}`} width={size} height={size}>
         <defs>
-          <radialGradient id="globeCore" cx="0.35" cy="0.35" r="0.7">
-            <stop offset="0" stopColor="#b8f0ff" stopOpacity="0.55" />
-            <stop offset="0.45" stopColor="#1a6fa0" stopOpacity="0.35" />
-            <stop offset="1" stopColor="#04304a" stopOpacity="0.15" />
+          {/* ocean body */}
+          <radialGradient id="sgOcean" cx="0.32" cy="0.28" r="0.75">
+            <stop offset="0" stopColor="#7ec8ff" stopOpacity="0.95" />
+            <stop offset="0.45" stopColor="#1a6a9e" stopOpacity="0.9" />
+            <stop offset="1" stopColor="#062a45" stopOpacity="0.95" />
           </radialGradient>
+          {/* limb / atmosphere */}
+          <radialGradient id="sgAtmo" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0.72" stopColor="#8fdfff" stopOpacity="0" />
+            <stop offset="0.88" stopColor="#6fd0ff" stopOpacity="0.35" />
+            <stop offset="1" stopColor="#b8f0ff" stopOpacity="0.15" />
+          </radialGradient>
+          {/* specular highlight */}
+          <radialGradient id="sgSpec" cx="0.3" cy="0.25" r="0.4">
+            <stop offset="0" stopColor="#ffffff" stopOpacity="0.55" />
+            <stop offset="0.4" stopColor="#a8e8ff" stopOpacity="0.15" />
+            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
+          <clipPath id="sgClip">
+            <circle r={R} />
+          </clipPath>
         </defs>
-        <g stroke="#62d6ff" fill="none" strokeWidth="0.8">
-          <circle r={half * 0.98} opacity="0.3" />
-          <circle r={half * 0.72} fill="url(#globeCore)" stroke="#7fe3ff" strokeWidth="1.2" opacity="0.9" />
-          {/* latitude lines */}
-          <ellipse rx={half * 0.72} ry={half * 0.22} opacity="0.45" className={mode === 'scanning' ? 'spin-med' : 'spin-slow'} />
-          <ellipse rx={half * 0.72} ry={half * 0.42} opacity="0.35" className={mode === 'scanning' ? 'spin-rev' : 'spin-slow'} />
-          {/* longitude */}
-          <ellipse rx={half * 0.28} ry={half * 0.72} opacity="0.4" className={mode === 'scanning' ? 'spin-med' : 'spin-rev'} />
-          <ellipse rx={half * 0.5} ry={half * 0.72} opacity="0.3" className={mode === 'scanning' ? 'spin-rev' : 'spin-slow'} />
-          {/* scan ring */}
-          <circle
-            r={half * 0.85}
-            strokeDasharray="4 6"
-            opacity={mode === 'scanning' ? 0.95 : 0.4}
-            className={mode === 'scanning' ? 'spin-med' : 'spin-slow'}
-          />
-          <circle r={half * 0.12} fill="#9ff0ff" stroke="none" opacity="0.95" />
-          {mode === 'scanning' && (
-            <circle r={half * 0.55} className="pulse-ring" strokeWidth="1.5" opacity="0.8" />
-          )}
+
+        {/* outer HUD ring */}
+        <circle r={half * 0.96} fill="none" stroke="#62d6ff" strokeWidth="0.7" opacity="0.28" />
+        <circle
+          r={half * 0.9}
+          fill="none"
+          stroke="#62d6ff"
+          strokeWidth="0.6"
+          strokeDasharray="3 5"
+          opacity="0.45"
+          className={mode === 'scanning' ? 'spin-med' : 'spin-slow'}
+        />
+
+        {/* planet */}
+        <g className={spinLand} style={{ transformOrigin: '0px 0px' }}>
+          <circle r={R} fill="url(#sgOcean)" stroke="#8fe0ff" strokeWidth="1.1" />
+          <g clipPath="url(#sgClip)" opacity="0.85">
+            {/* stylized continents (cyan land masses) */}
+            <path
+              d={`M ${-R * 0.55} ${-R * 0.15}
+                  c ${R * 0.1} ${-R * 0.25} ${R * 0.35} ${-R * 0.35} ${R * 0.5} ${-R * 0.12}
+                  c ${R * 0.12} ${R * 0.18} ${R * 0.05} ${R * 0.4} ${-R * 0.15} ${R * 0.42}
+                  c ${-R * 0.25} ${0.02 * R} ${-R * 0.4} ${-R * 0.08} ${-R * 0.35} ${-R * 0.3} z`}
+              fill="#3d9a6a"
+              opacity="0.75"
+            />
+            <path
+              d={`M ${R * 0.15} ${R * 0.05}
+                  c ${R * 0.2} ${-R * 0.15} ${R * 0.45} ${-R * 0.05} ${R * 0.4} ${R * 0.2}
+                  c ${-0.02 * R} ${R * 0.25} ${-R * 0.3} ${R * 0.35} ${-R * 0.45} ${R * 0.18}
+                  c ${-R * 0.12} ${-R * 0.12} ${-R * 0.08} ${-R * 0.28} ${0.05 * R} ${-R * 0.38} z`}
+              fill="#2f8a5c"
+              opacity="0.7"
+            />
+            <path
+              d={`M ${-R * 0.2} ${R * 0.35}
+                  c ${R * 0.15} ${R * 0.05} ${R * 0.3} ${R * 0.2} ${R * 0.1} ${R * 0.32}
+                  c ${-R * 0.2} ${0.08 * R} ${-R * 0.35} ${-0.05 * R} ${-R * 0.28} ${-R * 0.22}
+                  c ${0.05 * R} ${-0.08 * R} ${0.12 * R} ${-0.12 * R} ${0.18 * R} ${-0.1 * R} z`}
+              fill="#348f62"
+              opacity="0.65"
+            />
+            <ellipse cx={-R * 0.1} cy={-R * 0.45} rx={R * 0.22} ry={R * 0.12} fill="#e8f6ff" opacity="0.35" />
+            <ellipse cx={R * 0.25} cy={R * 0.4} rx={R * 0.18} ry={R * 0.1} fill="#e8f6ff" opacity="0.25" />
+          </g>
+          {/* lat / lon grid */}
+          <ellipse rx={R} ry={R * 0.32} fill="none" stroke="#b8f0ff" strokeWidth="0.5" opacity="0.35" />
+          <ellipse rx={R} ry={R * 0.55} fill="none" stroke="#b8f0ff" strokeWidth="0.4" opacity="0.25" />
+          <ellipse rx={R * 0.35} ry={R} fill="none" stroke="#b8f0ff" strokeWidth="0.5" opacity="0.3" />
+          <ellipse rx={R * 0.65} ry={R} fill="none" stroke="#b8f0ff" strokeWidth="0.4" opacity="0.22" />
+          <line x1={-R} y1="0" x2={R} y2="0" stroke="#b8f0ff" strokeWidth="0.4" opacity="0.3" />
+          <circle r={R} fill="url(#sgSpec)" stroke="none" />
         </g>
+
+        {/* atmosphere halo */}
+        <circle r={R * 1.08} fill="url(#sgAtmo)" stroke="none" />
+
+        {/* orbital path */}
+        <ellipse
+          rx={R * 1.28}
+          ry={R * 0.48}
+          fill="none"
+          stroke="#6fdcff"
+          strokeWidth="0.6"
+          strokeDasharray="2 3"
+          opacity="0.5"
+          transform="rotate(-18)"
+        />
+
+        {/* satellite */}
+        <g className={spinSat}>
+          <g transform={`translate(0, ${-R * 1.28})`}>
+            <rect x="-5" y="-2" width="10" height="4" rx="0.8" fill="#c8f4ff" stroke="#7fe3ff" strokeWidth="0.6" />
+            <rect x="-9" y="-1.2" width="3.5" height="2.4" fill="#4a9fd4" opacity="0.9" />
+            <rect x="5.5" y="-1.2" width="3.5" height="2.4" fill="#4a9fd4" opacity="0.9" />
+            <circle cx="0" cy="0" r="1.2" fill="#fff" />
+            {/* tiny antenna */}
+            <line x1="0" y1="-2" x2="0" y2="-5" stroke="#9ceaff" strokeWidth="0.7" />
+            <circle cx="0" cy="-5.5" r="1" fill="none" stroke="#9ceaff" strokeWidth="0.6" />
+          </g>
+        </g>
+
+        {/* scan pulse */}
+        {mode === 'scanning' && (
+          <circle r={R * 0.95} fill="none" stroke="#9ceaff" strokeWidth="1.4" className="pulse-ring" opacity="0.85" />
+        )}
+
+        {/* playing: radio waves */}
+        {playing && (
+          <g className="radio-waves" fill="none" stroke="#7dffb3" strokeWidth="1.2">
+            <path d={`M ${R * 0.85} ${-R * 0.15} a ${R * 0.2} ${R * 0.2} 0 0 1 0 ${R * 0.3}`} opacity="0.9" className="wave-a" />
+            <path d={`M ${R * 1.05} ${-R * 0.28} a ${R * 0.35} ${R * 0.35} 0 0 1 0 ${R * 0.56}`} opacity="0.65" className="wave-b" />
+            <path d={`M ${R * 1.25} ${-R * 0.4} a ${R * 0.5} ${R * 0.5} 0 0 1 0 ${R * 0.8}`} opacity="0.4" className="wave-c" />
+          </g>
+        )}
+
+        {/* locked lock pip */}
+        {mode === 'locked' && !playing && (
+          <circle r="3" cx={R * 0.55} cy={-R * 0.55} fill="#9ceaff" opacity="0.95" />
+        )}
       </svg>
+
       <div className="globe-caption">
         <span className="globe-mode">
-          {mode === 'scanning' ? 'SCANNING…' : playing ? 'ON AIR' : mode === 'locked' ? 'SIGNALS LOCKED' : 'SIGNAL GLOBE'}
+          {mode === 'scanning'
+            ? 'SCANNING…'
+            : playing
+              ? '● ON AIR'
+              : mode === 'locked'
+                ? 'SIGNALS LOCKED'
+                : 'SIGNAL GLOBE'}
         </span>
         {label ? <span className="globe-label">{label}</span> : null}
       </div>
