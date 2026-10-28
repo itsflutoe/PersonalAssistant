@@ -137,24 +137,37 @@ body {
   margin: 0;
   border: none;
   background: transparent;
-  filter: drop-shadow(0 0 6px rgba(60, 200, 255, 0.55));
+  filter: drop-shadow(0 0 10px rgba(60, 200, 255, 0.65));
   cursor: default;
   color: inherit;
   font: inherit;
 }
 .signal-globe.clickable { cursor: pointer; }
-.signal-globe.clickable:hover { filter: drop-shadow(0 0 12px rgba(100, 220, 255, 0.9)); }
+.signal-globe.clickable:hover { filter: drop-shadow(0 0 14px rgba(100, 220, 255, 0.95)); }
 .signal-globe svg { display: block; pointer-events: none; overflow: visible; }
-.signal-globe.globe-scan svg { filter: drop-shadow(0 0 8px rgba(80, 210, 255, 0.8)); }
+.signal-globe.globe-scan svg { filter: drop-shadow(0 0 10px rgba(80, 210, 255, 0.9)); }
 .signal-globe.on-air {
-  filter: drop-shadow(0 0 10px rgba(80, 255, 160, 0.55));
+  filter: drop-shadow(0 0 12px rgba(80, 255, 160, 0.55));
 }
 .signal-globe.on-air .globe-mode {
   color: #7dffb3;
   text-shadow: 0 0 8px rgba(80, 255, 160, 0.9);
 }
 
-/* satellite orbit (tilted ring around globe) */
+/* Globe stays centered — only rotates on its axis */
+.globe-axis,
+.globe-axis-fast {
+  transform-origin: 0px 0px;
+  transform-box: fill-box;
+}
+.globe-axis { animation: globeAxis 48s linear infinite; }
+.globe-axis-fast { animation: globeAxis 16s linear infinite; }
+@keyframes globeAxis {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Satellite is the only element that orbits around the globe */
 .sat-orbit,
 .sat-orbit-fast {
   transform-origin: 0px 0px;
@@ -167,7 +180,6 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* ON AIR radio waves */
 .radio-waves .wave-a { animation: wavePulse 1.4s ease-out infinite; }
 .radio-waves .wave-b { animation: wavePulse 1.4s ease-out infinite 0.25s; }
 .radio-waves .wave-c { animation: wavePulse 1.4s ease-out infinite 0.5s; }
@@ -205,8 +217,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-/* ---------- radio side panel ---------- */
 
 .radio-panel {
   position: absolute;
