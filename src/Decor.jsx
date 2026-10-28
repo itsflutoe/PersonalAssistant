@@ -605,7 +605,7 @@ export function SignalGlobe({
         ? 'SIGNAL LOCK · REDIRECTING'
         : mode === 'locked'
           ? 'SIGNALS LOCKED'
-          : 'SIGNAL GLOBE'
+          : 'Earth 616'
 
   const nodes = stations.slice(0, 12)
   const n = nodes.length
