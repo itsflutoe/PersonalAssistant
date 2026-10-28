@@ -277,7 +277,35 @@ export function Reticle({ size, cls = '', dense = false, children }) {
   )
 }
 
-/** Earth-like signal globe + satellite + play indicator. Modes: idle | scanning | locked */
+/** Simple land mask for dotted continents (lon/lat degrees). */
+function isLand(lon, lat) {
+  // Africa + Arabia-ish blob (matches reference framing)
+  if (lon > -20 && lon < 55 && lat > -35 && lat < 38) {
+    if (lon > 10 && lon < 50 && lat > 12 && lat < 35) return true // Arabia / MENA
+    if (lon > -18 && lon < 52 && lat > -35 && lat < 37) {
+      if (lat < -5 && lon > 40) return false
+      return true
+    }
+  }
+  // Europe hint
+  if (lon > -10 && lon < 40 && lat > 36 && lat < 70) return true
+  // Americas hint (back side, still dots when rotated)
+  if (lon > -120 && lon < -30 && lat > -55 && lat < 70) {
+    if (lon > -80 && lon < -35 && lat > -55 && lat < 12) return true
+    if (lon > -130 && lon < -60 && lat > 15 && lat < 72) return true
+  }
+  // Asia / Australia sparse
+  if (lon > 60 && lon < 150 && lat > -10 && lat < 55) return lon < 140 || lat < 20
+  if (lon > 110 && lon < 155 && lat > -40 && lat < -10) return true
+  return false
+}
+
+function isHotspot(lon, lat) {
+  // green highlight region similar to reference (Arabian peninsula area)
+  return lon > 35 && lon < 60 && lat > 12 && lat < 32
+}
+
+/** Holographic dotted globe — stays fixed, rotates on axis; satellite orbits. */
 export function SignalGlobe({
   size = 178,
   mode = 'idle',
@@ -286,10 +314,49 @@ export function SignalGlobe({
   playing = false,
 }) {
   const half = size / 2
-  const R = half * 0.68
-  const spinLand = mode === 'scanning' ? 'spin-med' : 'spin-slow'
-  const spinSat = mode === 'scanning' ? 'sat-orbit-fast' : 'sat-orbit'
+  const R = half * 0.62
   const clickable = mode === 'locked' || (mode === 'idle' && playing)
+  const globeSpin = mode === 'scanning' ? 'globe-axis-fast' : 'globe-axis'
+  const satSpin = mode === 'scanning' ? 'sat-orbit-fast' : 'sat-orbit'
+
+  const dots = useMemo(() => {
+    const out = []
+    const step = 9 // degrees
+    for (let lat = -80; lat <= 80; lat += step) {
+      const latR = (lat * Math.PI) / 180
+      const rowR = Math.cos(latR)
+      const lonStep = Math.max(8, step / Math.max(0.25, Math.abs(rowR)))
+      for (let lon = -180; lon < 180; lon += lonStep) {
+        const lonR = (lon * Math.PI) / 180
+        // sphere projection (yaw will be animated via CSS rotate on group)
+        const x = R * rowR * Math.sin(lonR)
+        const y = -R * Math.sin(latR)
+        const z = R * rowR * Math.cos(lonR)
+        if (z < -R * 0.15) continue // hide far back face a bit
+        const land = isLand(lon, lat)
+        const hot = land && isHotspot(lon, lat)
+        const front = (z + R) / (2 * R)
+        out.push({
+          x,
+          y,
+          r: land ? (hot ? 1.35 : 1.05) : 0.45,
+          o: land ? 0.35 + front * 0.65 : 0.08 + front * 0.2,
+          hot,
+          land,
+        })
+      }
+    }
+    return out
+  }, [R])
+
+  const caption =
+    mode === 'scanning'
+      ? 'SCANNING…'
+      : playing
+        ? 'SIGNAL LOCK · REDIRECTING'
+        : mode === 'locked'
+          ? 'SIGNALS LOCKED'
+          : 'SIGNAL GLOBE'
 
   return (
     <button
@@ -300,142 +367,126 @@ export function SignalGlobe({
       title={clickable ? 'Open signal list' : 'Run /rad <place> to scan'}
       aria-label="Signal globe"
     >
-      <svg viewBox={`${-half} ${-half} ${size} ${size}`} width={size} height={size}>
+      <svg viewBox={`${-half} ${-half} ${size} ${size}`} width={size} height={size} overflow="visible">
         <defs>
-          {/* ocean body */}
-          <radialGradient id="sgOcean" cx="0.32" cy="0.28" r="0.75">
-            <stop offset="0" stopColor="#7ec8ff" stopOpacity="0.95" />
-            <stop offset="0.45" stopColor="#1a6a9e" stopOpacity="0.9" />
-            <stop offset="1" stopColor="#062a45" stopOpacity="0.95" />
+          <radialGradient id="sgHalo" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0.55" stopColor="#4fd1ff" stopOpacity="0" />
+            <stop offset="0.82" stopColor="#4fd1ff" stopOpacity="0.22" />
+            <stop offset="1" stopColor="#9ceaff" stopOpacity="0.08" />
           </radialGradient>
-          {/* limb / atmosphere */}
-          <radialGradient id="sgAtmo" cx="0.5" cy="0.5" r="0.5">
-            <stop offset="0.72" stopColor="#8fdfff" stopOpacity="0" />
-            <stop offset="0.88" stopColor="#6fd0ff" stopOpacity="0.35" />
-            <stop offset="1" stopColor="#b8f0ff" stopOpacity="0.15" />
+          <radialGradient id="sgCore" cx="0.38" cy="0.32" r="0.7">
+            <stop offset="0" stopColor="#6ec8ff" stopOpacity="0.25" />
+            <stop offset="0.55" stopColor="#0a3a58" stopOpacity="0.35" />
+            <stop offset="1" stopColor="#021018" stopOpacity="0.55" />
           </radialGradient>
-          {/* specular highlight */}
-          <radialGradient id="sgSpec" cx="0.3" cy="0.25" r="0.4">
-            <stop offset="0" stopColor="#ffffff" stopOpacity="0.55" />
-            <stop offset="0.4" stopColor="#a8e8ff" stopOpacity="0.15" />
-            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-          </radialGradient>
-          <clipPath id="sgClip">
-            <circle r={R} />
-          </clipPath>
+          <filter id="sgGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="1.2" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
 
-        {/* outer HUD ring */}
-        <circle r={half * 0.96} fill="none" stroke="#62d6ff" strokeWidth="0.7" opacity="0.28" />
-        <circle
-          r={half * 0.9}
-          fill="none"
-          stroke="#62d6ff"
-          strokeWidth="0.6"
-          strokeDasharray="3 5"
-          opacity="0.45"
-          className={mode === 'scanning' ? 'spin-med' : 'spin-slow'}
-        />
+        {/* soft outer glow sphere */}
+        <circle r={R * 1.35} fill="url(#sgHalo)" />
 
-        {/* planet */}
-        <g className={spinLand} style={{ transformOrigin: '0px 0px' }}>
-          <circle r={R} fill="url(#sgOcean)" stroke="#8fe0ff" strokeWidth="1.1" />
-          <g clipPath="url(#sgClip)" opacity="0.85">
-            {/* stylized continents (cyan land masses) */}
-            <path
-              d={`M ${-R * 0.55} ${-R * 0.15}
-                  c ${R * 0.1} ${-R * 0.25} ${R * 0.35} ${-R * 0.35} ${R * 0.5} ${-R * 0.12}
-                  c ${R * 0.12} ${R * 0.18} ${R * 0.05} ${R * 0.4} ${-R * 0.15} ${R * 0.42}
-                  c ${-R * 0.25} ${0.02 * R} ${-R * 0.4} ${-R * 0.08} ${-R * 0.35} ${-R * 0.3} z`}
-              fill="#3d9a6a"
-              opacity="0.75"
-            />
-            <path
-              d={`M ${R * 0.15} ${R * 0.05}
-                  c ${R * 0.2} ${-R * 0.15} ${R * 0.45} ${-R * 0.05} ${R * 0.4} ${R * 0.2}
-                  c ${-0.02 * R} ${R * 0.25} ${-R * 0.3} ${R * 0.35} ${-R * 0.45} ${R * 0.18}
-                  c ${-R * 0.12} ${-R * 0.12} ${-R * 0.08} ${-R * 0.28} ${0.05 * R} ${-R * 0.38} z`}
-              fill="#2f8a5c"
-              opacity="0.7"
-            />
-            <path
-              d={`M ${-R * 0.2} ${R * 0.35}
-                  c ${R * 0.15} ${R * 0.05} ${R * 0.3} ${R * 0.2} ${R * 0.1} ${R * 0.32}
-                  c ${-R * 0.2} ${0.08 * R} ${-R * 0.35} ${-0.05 * R} ${-R * 0.28} ${-R * 0.22}
-                  c ${0.05 * R} ${-0.08 * R} ${0.12 * R} ${-0.12 * R} ${0.18 * R} ${-0.1 * R} z`}
-              fill="#348f62"
-              opacity="0.65"
-            />
-            <ellipse cx={-R * 0.1} cy={-R * 0.45} rx={R * 0.22} ry={R * 0.12} fill="#e8f6ff" opacity="0.35" />
-            <ellipse cx={R * 0.25} cy={R * 0.4} rx={R * 0.18} ry={R * 0.1} fill="#e8f6ff" opacity="0.25" />
-          </g>
-          {/* lat / lon grid */}
-          <ellipse rx={R} ry={R * 0.32} fill="none" stroke="#b8f0ff" strokeWidth="0.5" opacity="0.35" />
-          <ellipse rx={R} ry={R * 0.55} fill="none" stroke="#b8f0ff" strokeWidth="0.4" opacity="0.25" />
-          <ellipse rx={R * 0.35} ry={R} fill="none" stroke="#b8f0ff" strokeWidth="0.5" opacity="0.3" />
-          <ellipse rx={R * 0.65} ry={R} fill="none" stroke="#b8f0ff" strokeWidth="0.4" opacity="0.22" />
-          <line x1={-R} y1="0" x2={R} y2="0" stroke="#b8f0ff" strokeWidth="0.4" opacity="0.3" />
-          <circle r={R} fill="url(#sgSpec)" stroke="none" />
-        </g>
-
-        {/* atmosphere halo */}
-        <circle r={R * 1.08} fill="url(#sgAtmo)" stroke="none" />
-
-        {/* orbital path */}
+        {/* static orbital rings (do not spin with land — stay composed like the ref) */}
         <ellipse
-          rx={R * 1.28}
-          ry={R * 0.48}
+          rx={R * 1.22}
+          ry={R * 0.42}
           fill="none"
-          stroke="#6fdcff"
-          strokeWidth="0.6"
-          strokeDasharray="2 3"
-          opacity="0.5"
-          transform="rotate(-18)"
+          stroke="#5ecfff"
+          strokeWidth="0.7"
+          opacity="0.45"
+          transform="rotate(-12)"
+        />
+        <ellipse
+          rx={R * 1.15}
+          ry={R * 0.36}
+          fill="none"
+          stroke="#5ecfff"
+          strokeWidth="0.5"
+          opacity="0.3"
+          transform="rotate(18)"
+        />
+        <ellipse
+          rx={R * 1.05}
+          ry={R * 0.28}
+          fill="none"
+          stroke="#7fe3ff"
+          strokeWidth="0.45"
+          opacity="0.25"
+          transform="rotate(-28)"
         />
 
-        {/* satellite */}
-        <g className={spinSat}>
-          <g transform={`translate(0, ${-R * 1.28})`}>
-            <rect x="-5" y="-2" width="10" height="4" rx="0.8" fill="#c8f4ff" stroke="#7fe3ff" strokeWidth="0.6" />
-            <rect x="-9" y="-1.2" width="3.5" height="2.4" fill="#4a9fd4" opacity="0.9" />
-            <rect x="5.5" y="-1.2" width="3.5" height="2.4" fill="#4a9fd4" opacity="0.9" />
-            <circle cx="0" cy="0" r="1.2" fill="#fff" />
-            {/* tiny antenna */}
-            <line x1="0" y1="-2" x2="0" y2="-5" stroke="#9ceaff" strokeWidth="0.7" />
-            <circle cx="0" cy="-5.5" r="1" fill="none" stroke="#9ceaff" strokeWidth="0.6" />
+        {/* globe body: fixed center, rotates on its own axis only */}
+        <g className={globeSpin} filter="url(#sgGlow)">
+          <circle r={R} fill="url(#sgCore)" stroke="#6fdcff" strokeWidth="1" opacity="0.95" />
+
+          {/* latitude wire arcs */}
+          {[-50, -25, 0, 25, 50].map((lat) => {
+            const ry = R * Math.cos((lat * Math.PI) / 180)
+            const cy = -R * Math.sin((lat * Math.PI) / 180)
+            return (
+              <ellipse
+                key={lat}
+                cx="0"
+                cy={cy}
+                rx={R * 0.98}
+                ry={Math.max(2, ry * 0.22)}
+                fill="none"
+                stroke="#7fe3ff"
+                strokeWidth="0.35"
+                opacity="0.28"
+              />
+            )
+          })}
+
+          {/* dotted land / ocean field */}
+          {dots.map((d, i) => (
+            <circle
+              key={i}
+              cx={d.x}
+              cy={d.y}
+              r={d.r}
+              fill={d.hot ? '#3dff9a' : d.land ? '#8aeaff' : '#3a8eb8'}
+              opacity={d.hot ? 0.95 : d.o}
+            />
+          ))}
+
+          {/* limb rim */}
+          <circle r={R} fill="none" stroke="#b8f4ff" strokeWidth="1.2" opacity="0.55" />
+          <circle r={R * 1.04} fill="none" stroke="#4fd1ff" strokeWidth="0.6" opacity="0.35" />
+        </g>
+
+        {/* satellite — only this moves around the globe */}
+        <g className={satSpin}>
+          <g transform={`translate(0, ${-R * 1.22})`}>
+            <rect x="-4.5" y="-1.8" width="9" height="3.6" rx="0.6" fill="#d8f7ff" stroke="#7fe3ff" strokeWidth="0.5" />
+            <rect x="-8.5" y="-1.1" width="3.2" height="2.2" fill="#4a9fd4" />
+            <rect x="5.3" y="-1.1" width="3.2" height="2.2" fill="#4a9fd4" />
+            <circle cx="0" cy="0" r="1" fill="#fff" />
+            <line x1="0" y1="-1.8" x2="0" y2="-4.5" stroke="#9ceaff" strokeWidth="0.6" />
+            <circle cx="0" cy="-5" r="0.9" fill="none" stroke="#9ceaff" strokeWidth="0.5" />
           </g>
         </g>
 
-        {/* scan pulse */}
         {mode === 'scanning' && (
-          <circle r={R * 0.95} fill="none" stroke="#9ceaff" strokeWidth="1.4" className="pulse-ring" opacity="0.85" />
+          <circle r={R * 1.08} fill="none" stroke="#9ceaff" strokeWidth="1.2" className="pulse-ring" opacity="0.7" />
         )}
 
-        {/* playing: radio waves */}
         {playing && (
-          <g className="radio-waves" fill="none" stroke="#7dffb3" strokeWidth="1.2">
-            <path d={`M ${R * 0.85} ${-R * 0.15} a ${R * 0.2} ${R * 0.2} 0 0 1 0 ${R * 0.3}`} opacity="0.9" className="wave-a" />
-            <path d={`M ${R * 1.05} ${-R * 0.28} a ${R * 0.35} ${R * 0.35} 0 0 1 0 ${R * 0.56}`} opacity="0.65" className="wave-b" />
-            <path d={`M ${R * 1.25} ${-R * 0.4} a ${R * 0.5} ${R * 0.5} 0 0 1 0 ${R * 0.8}`} opacity="0.4" className="wave-c" />
+          <g className="radio-waves" fill="none" stroke="#7dffb3" strokeWidth="1.1">
+            <path d={`M ${R * 0.9} ${-R * 0.12} a ${R * 0.18} ${R * 0.18} 0 0 1 0 ${R * 0.24}`} className="wave-a" />
+            <path d={`M ${R * 1.08} ${-R * 0.22} a ${R * 0.3} ${R * 0.3} 0 0 1 0 ${R * 0.44}`} className="wave-b" />
+            <path d={`M ${R * 1.26} ${-R * 0.32} a ${R * 0.42} ${R * 0.42} 0 0 1 0 ${R * 0.64}`} className="wave-c" />
           </g>
-        )}
-
-        {/* locked lock pip */}
-        {mode === 'locked' && !playing && (
-          <circle r="3" cx={R * 0.55} cy={-R * 0.55} fill="#9ceaff" opacity="0.95" />
         )}
       </svg>
 
       <div className="globe-caption">
-        <span className="globe-mode">
-          {mode === 'scanning'
-            ? 'SCANNING…'
-            : playing
-              ? '● ON AIR'
-              : mode === 'locked'
-                ? 'SIGNALS LOCKED'
-                : 'SIGNAL GLOBE'}
-        </span>
+        <span className="globe-mode">{caption}</span>
         {label ? <span className="globe-label">{label}</span> : null}
       </div>
     </button>
