@@ -277,7 +277,6 @@ export function Reticle({ size, cls = '', dense = false, children }) {
     </div>
   )
 }
-
 /* ---------- Holographic signal globe (canvas) ---------- */
 
 const D2R = Math.PI / 180
@@ -378,6 +377,9 @@ export function SignalGlobe({
   label = '',
   onClick,
   playing = false,
+  stations = [],
+  playingId = null,
+  onSelect,
 }) {
   const canvasRef = useRef(null)
   const stateRef = useRef({ mode, playing })
@@ -605,20 +607,57 @@ export function SignalGlobe({
           ? 'SIGNALS LOCKED'
           : 'SIGNAL GLOBE'
 
+  const nodes = stations.slice(0, 12)
+  const n = nodes.length
+  const orbitR = size * 0.58
+
   return (
-    <button
-      type="button"
-      className={`signal-globe ${mode === 'scanning' ? 'globe-scan' : ''} ${playing ? 'on-air' : ''} ${clickable ? 'clickable' : ''}`}
-      style={{ width: size, height: size }}
-      onClick={clickable ? onClick : undefined}
-      title={clickable ? 'Open signal list' : 'Run /rad <place> to scan'}
-      aria-label="Signal globe"
-    >
-      <canvas ref={canvasRef} style={{ width: size, height: size }} />
-      <div className="globe-caption">
-        <span className="globe-mode">{caption}</span>
-        {label ? <span className="globe-label">{label}</span> : null}
-      </div>
-    </button>
+    <div className="signal-globe-root" style={{ width: size, height: size }}>
+      <button
+        type="button"
+        className={`signal-globe ${mode === 'scanning' ? 'globe-scan' : ''} ${playing ? 'on-air' : ''} ${clickable ? 'clickable' : ''}`}
+        style={{ width: size, height: size }}
+        onClick={clickable && !nodes.length ? onClick : undefined}
+        title={nodes.length ? undefined : clickable ? 'Signals locked' : 'Run /rad <place> to scan'}
+        aria-label="Signal globe"
+      >
+        <canvas ref={canvasRef} style={{ width: size, height: size }} />
+        <div className="globe-caption">
+          <span className="globe-mode">{caption}</span>
+          {label ? <span className="globe-label">{label}</span> : null}
+        </div>
+      </button>
+
+      {n > 0 && (
+        <div className="orbit-nodes" aria-label="Radio stations">
+          {nodes.map((s, i) => {
+            const angle = (i / n) * 360 - 90
+            const isActive = playingId === s.id
+            const meta = [s.bitrate ? `${s.bitrate}k` : null, s.codec].filter(Boolean).join(' · ')
+            return (
+              <button
+                key={s.id}
+                type="button"
+                className={`orbit-node ${isActive ? 'active' : ''}`}
+                style={{
+                  transform: `rotate(${angle}deg) translate(${orbitR}px) rotate(${-angle}deg)`,
+                }}
+                title={`${s.name}${meta ? ` · ${meta}` : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSelect?.(s)
+                }}
+              >
+                <span className="orbit-dot" />
+                <span className="orbit-tip">
+                  <span className="orbit-tip-name">{s.name}</span>
+                  {meta ? <span className="orbit-tip-meta">{meta}</span> : null}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
