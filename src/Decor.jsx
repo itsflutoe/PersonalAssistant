@@ -281,8 +281,8 @@ export function Reticle({ size, cls = '', dense = false, children }) {
 /* ---------- Holographic signal globe (canvas) ---------- */
 
 const D2R = Math.PI / 180
-const VIEW_TILT = 15 * D2R
-const START_LON = 40
+const VIEW_TILT = 15 * D2R // camera looks slightly down on the northern hemisphere
+const START_LON = 40 // Arabia faces the viewer on load
 
 function inRing(lon, lat, ring) {
   let inside = false
@@ -305,6 +305,7 @@ function bbox(ring) {
   return [a, b, c, d]
 }
 
+/** Insert intermediate vertices so long edges follow the sphere's curvature. */
 function densify(ring, maxStep = 2.5, closed = true) {
   const out = []
   const n = ring.length
@@ -334,6 +335,7 @@ function buildGeo() {
   const inSaudi = (lon, lat) =>
     lon >= saudiB[0] && lon <= saudiB[2] && lat >= saudiB[1] && lat <= saudiB[3] && inRing(lon, lat, SAUDI)
 
+  // Dots as a flat Float32Array: lon, lat, kind (0 ocean, 1 land, 2 saudi)
   const pts = []
   const step = 3
   let row = 0
@@ -342,7 +344,7 @@ function buildGeo() {
     const lonStep = Math.max(step, step / Math.max(0.2, c))
     let col = 0
     for (let lon = -180; lon < 180; lon += lonStep, col++) {
-      if (inSaudi(lon, lat)) continue
+      if (inSaudi(lon, lat)) continue // denser green grid added below
       if (isLand(lon, lat)) pts.push(lon, lat, 1)
       else if (row % 2 === 0 && col % 2 === 0) pts.push(lon, lat, 0)
     }
@@ -354,6 +356,7 @@ function buildGeo() {
   }
 
   const outlines = LAND.map((r) => densify(r))
+  // Antarctic coast as an open polyline
   const ant = []
   for (let lon = -180; lon <= 180; lon += 4) ant.push([lon, antarcticaCoast(lon)])
   outlines.push(ant)
@@ -363,6 +366,7 @@ function buildGeo() {
   return GEO
 }
 
+// Orbit rings: [radius, height] in globe radii (horizontal circles around the polar axis)
 const RINGS = [
   [0.82, 0.98, 0.3],
   [1.14, 0.45, 0.34],
@@ -372,6 +376,12 @@ const RINGS = [
 ]
 const SAT_RING = 2
 
+/**
+ * Holographic dotted globe (matches the HUD reference: dotted continents,
+ * glowing coastlines, Saudi Arabia highlighted green, stacked orbit rings).
+ * - Globe spins on its polar axis; the satellite rides the middle orbit ring.
+ * - Pure canvas, no dependencies. Props are unchanged.
+ */
 export function SignalGlobe({
   size = 178,
   mode = 'idle',
@@ -402,12 +412,13 @@ export function SignalGlobe({
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
     let lonC = START_LON
-    let speed = 4
+    let speed = 4 // deg / s
     let satA = 0
     let last = 0
     let raf = 0
     let acc = 0
 
+    // project lon/lat (deg) -> [sx, sy, z]
     const proj = (lon, lat, out) => {
       const la = lat * D2R
       const lo = (lon - lonC) * D2R
@@ -473,6 +484,7 @@ export function SignalGlobe({
       ctx.setTransform(dpr, 0, 0, dpr, half * dpr, half * dpr)
       ctx.clearRect(-half, -half, size, size)
 
+      // outer halo
       const halo = ctx.createRadialGradient(0, 0, R * 0.9, 0, 0, R * 1.5)
       halo.addColorStop(0, 'rgba(60,190,255,0.28)')
       halo.addColorStop(0.45, 'rgba(60,190,255,0.08)')
@@ -483,8 +495,10 @@ export function SignalGlobe({
       ctx.arc(0, 0, R * 1.5, 0, Math.PI * 2)
       ctx.fill()
 
+      // rings behind the globe
       for (let i = 0; i < RINGS.length; i++) drawRing(i, false)
 
+      // translucent globe body
       const body = ctx.createRadialGradient(-R * 0.35, -R * 0.4, R * 0.1, 0, 0, R)
       body.addColorStop(0, 'rgba(40,120,170,0.20)')
       body.addColorStop(0.6, 'rgba(4,30,50,0.55)')
@@ -495,8 +509,10 @@ export function SignalGlobe({
       ctx.arc(0, 0, R, 0, Math.PI * 2)
       ctx.fill()
 
+      // faint far-side coastlines (see-through hologram)
       for (const line of geo.outlines) strokeLine(line, false, 0.1, 0.5, '#5cc8f0')
 
+      // dots
       const d = geo.dots
       for (let i = 0; i < d.length; i += 3) {
         proj(d[i], d[i + 1], p)
@@ -518,11 +534,13 @@ export function SignalGlobe({
         }
       }
 
+      // glowing coastlines (wide soft pass + thin bright pass)
       for (const line of geo.outlines) strokeLine(line, true, 0.22, 2.2, '#4fd1ff')
       for (const line of geo.outlines) strokeLine(line, true, 0.9, 0.6, '#e6fbff')
       strokeLine(geo.saudi, true, 0.35, 2.4, '#3dff9a')
       strokeLine(geo.saudi, true, 1, 0.8, '#9dffc6')
 
+      // limb: bright rim + dotted outer shell
       ctx.globalAlpha = 0.6
       ctx.lineWidth = 1
       ctx.strokeStyle = '#a9f1ff'
@@ -537,8 +555,10 @@ export function SignalGlobe({
       ctx.stroke()
       ctx.setLineDash([])
 
+      // rings in front of the globe
       for (let i = 0; i < RINGS.length; i++) drawRing(i, true)
 
+      // satellite on the middle ring
       ringPoint(RINGS[SAT_RING][0], RINGS[SAT_RING][1], satA, p)
       const hidden = p[2] < 0 && Math.hypot(p[0], p[1]) < R
       if (!hidden) {
@@ -554,8 +574,9 @@ export function SignalGlobe({
         ctx.fillRect(p[0] + 2.2, p[1] - 0.7, 2.4, 1.4)
       }
 
+      // scanning pulse
       if (scanning) {
-        const k = ((t / 1000) % 1.2) / 1.2
+        const k = (t / 1000) % 1.2 / 1.2
         ctx.globalAlpha = 0.7 * (1 - k)
         ctx.lineWidth = 1.2
         ctx.strokeStyle = '#9ceaff'
@@ -564,11 +585,12 @@ export function SignalGlobe({
         ctx.stroke()
       }
 
+      // on-air radio waves (right edge)
       if (pl) {
         ctx.lineWidth = 1.1
         ctx.strokeStyle = '#7dffb3'
         for (let w = 0; w < 3; w++) {
-          const ph = ((((t / 1400) - w * 0.18) % 1) + 1) % 1
+          const ph = (((t / 1400) - w * 0.18) % 1 + 1) % 1
           ctx.globalAlpha = 0.15 + 0.8 * Math.sin(ph * Math.PI)
           const rr = R * (0.18 + w * 0.12)
           ctx.beginPath()
@@ -584,11 +606,11 @@ export function SignalGlobe({
       if (!last) last = t
       const dt = Math.min(0.1, (t - last) / 1000)
       acc += dt
-      if (acc < 1 / 30) return
+      if (acc < 1 / 30) return // ~30fps is plenty for a 178px HUD element
       last = t
       const target = stateRef.current.mode === 'scanning' ? 13 : 4
       speed += (target - speed) * Math.min(1, acc * 3)
-      lonC -= speed * acc
+      lonC -= speed * acc // Earth turns west -> east, so the view centre drifts west
       satA += (stateRef.current.mode === 'scanning' ? 1.3 : 0.5) * acc
       acc = 0
       draw(t)
