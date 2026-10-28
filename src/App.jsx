@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStageScale } from './hooks.js'
 import Orb from './Orb.jsx'
-import { Background, Overlays, OrbRings, Platform, Connectors, Reticle } from './Decor.jsx'
+import { Background, Overlays, OrbRings, Platform, Connectors, Reticle, SignalGlobe } from './Decor.jsx'
 import { SystemDiagnostics, NetworkStatus, AnalyticsA, AnalyticsB } from './Panels.jsx'
 import { TextTerminal, CommandTerminal } from './Terminals.jsx'
 import {
@@ -13,10 +13,8 @@ import {
   SpeechRecognitionCtor,
 } from './flux.js'
 
-// desktop / laptop stage
 const W = 1408
 const H = 768
-// phone stage (portrait)
 const MW = 400
 const MH = 1034
 
@@ -30,7 +28,6 @@ const INITIAL = [
   mk('user', 'Yes, please do.'),
 ]
 
-// positions for the stacked phone layout (desktop positions live in the JSX / CSS)
 const M = {
   orb: { left: -20, top: -20, transform: 'scale(0.82)', transformOrigin: 'center' },
   rings: { left: -30, top: -30, transform: 'scale(0.82)', transformOrigin: 'center' },
@@ -43,9 +40,10 @@ const M = {
   anB: { left: 204, top: 884, width: 184, height: 136 },
 }
 
-/* ---------- Weather slash-command helpers (Open-Meteo, no API key) ---------- */
+const RB = 'https://de1.api.radio-browser.info'
 
-/** Short label for the panel (fits small HUD). */
+/* ---------- Weather helpers ---------- */
+
 function conditionLabel(code) {
   const c = code ?? -1
   if (c === 0) return 'SUNNY'
@@ -64,7 +62,6 @@ function conditionLabel(code) {
   return 'UNKNOWN'
 }
 
-/** Natural phrase for speech / chat. */
 function conditionSpoken(code) {
   const c = code ?? -1
   if (c === 0) return 'it is sunny and clear'
@@ -78,7 +75,7 @@ function conditionSpoken(code) {
   if (c >= 64 && c <= 65) return 'it is raining heavily'
   if (c >= 66 && c <= 67) return 'there is freezing rain'
   if (c >= 71 && c <= 75) return 'it is snowing'
-  if (c >= 77 && c <= 77) return 'there are snow grains'
+  if (c === 77) return 'there are snow grains'
   if (c >= 80 && c <= 82) return 'there are rain showers'
   if (c >= 85 && c <= 86) return 'there are snow showers'
   if (c >= 95 && c <= 99) return 'there is a thunderstorm'
@@ -110,19 +107,9 @@ async function fetchWeatherData(location) {
 
   const condition = conditionLabel(code)
   const howItIs = conditionSpoken(code)
-  const tempStr = `${Math.round(temp)} degrees`
-  // Lead with condition so users understand weather at a glance; humidity is optional detail
-  const spoken = `In ${label}, ${howItIs}. Temperature is ${tempStr}.`
+  const spoken = `In ${label}, ${howItIs}. Temperature is ${Math.round(temp)} degrees.`
 
-  return {
-    place: shortPlace,
-    label,
-    temp,
-    humidity,
-    code,
-    condition,
-    spoken,
-  }
+  return { place: shortPlace, label, temp, humidity, code, condition, spoken }
 }
 
 function isWeatherCommand(text) {
@@ -134,26 +121,138 @@ function extractWeatherLocation(text) {
   return text.trim().replace(/^\/(?:weather|wheather)\s*/i, '').trim()
 }
 
+/* ---------- Radio (/rad) helpers — Radio Browser ---------- */
+
+function isRadCommand(text) {
+  return text.trim().toLowerCase().startsWith('/rad')
+}
+
+function extractRadQuery(text) {
+  return text.trim().replace(/^\/rad\s*/i, '').trim()
+}
+
+function titleCase(s) {
+  return s
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ')
+}
+
+function isHttpsUrl(u) {
+  try {
+    return typeof u === 'string' && u.trim().toLowerCase().startsWith('https://')
+  } catch {
+    return false
+  }
+}
+
+function pageIsHttps() {
+  try {
+    return typeof location !== 'undefined' && location.protocol === 'https:'
+  } catch {
+    return true
+  }
+}
+
+async function fetchRadioStations(query) {
+  const q = query.trim()
+  if (!q) throw new Error('Specify a place or tag. Example: /rad philippines')
+
+  const country = titleCase(q)
+  const params = new URLSearchParams({
+    hidebroken: 'true',
+    limit: '60',
+    order: 'clickcount',
+    reverse: 'true',
+  })
+  params.set('country', country)
+
+  let res = await fetch(`${RB}/json/stations/search?${params}`, {
+    headers: { 'User-Agent': 'FluxHUD/1.0' },
+  })
+  if (!res.ok) throw new Error('Radio directory unavailable')
+  let list = await res.json()
+
+  if (!Array.isArray(list) || list.length === 0) {
+    const p2 = new URLSearchParams({
+      hidebroken: 'true',
+      limit: '60',
+      order: 'clickcount',
+      reverse: 'true',
+      name: q,
+    })
+    res = await fetch(`${RB}/json/stations/search?${p2}`, {
+      headers: { 'User-Agent': 'FluxHUD/1.0' },
+    })
+    if (!res.ok) throw new Error('Radio directory unavailable')
+    list = await res.json()
+  }
+
+  if (!Array.isArray(list) || list.length === 0) {
+    throw new Error(`No working radio signals found for "${q}".`)
+  }
+
+  const mapped = list
+    .map((s) => {
+      const url = (s.url_resolved || s.url || '').trim()
+      return {
+        id: s.stationuuid,
+        name: s.name?.trim() || 'Unknown station',
+        url,
+        country: s.country || '',
+        tags: s.tags || '',
+        bitrate: s.bitrate || 0,
+        codec: s.codec || '',
+        secure: isHttpsUrl(url),
+      }
+    })
+    .filter((s) => s.url)
+
+  // On HTTPS pages (Vercel), browsers block plain HTTP audio (mixed content).
+  const requireHttps = pageIsHttps()
+  let usable = requireHttps ? mapped.filter((s) => s.secure) : mapped
+
+  // Prefer higher bitrate among secure streams
+  usable = usable.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))
+
+  if (usable.length === 0) {
+    throw new Error(
+      requireHttps
+        ? `Found stations for "${q}", but none expose an HTTPS stream. Browsers block insecure HTTP audio on this site.`
+        : `No playable streams found for "${q}".`
+    )
+  }
+
+  return usable.slice(0, 20)
+}
+
 export default function App() {
   const { scale, mobile } = useStageScale(W, H, MW)
   const [messages, setMessages] = useState(INITIAL)
   const [pulse, setPulse] = useState(0)
-  const [status, setStatus] = useState('ready') // ready | listening | processing | speaking
-  const [weather, setWeather] = useState(null) // last /weather result for bottom-right panel
+  const [status, setStatus] = useState('ready')
+  const [weather, setWeather] = useState(null)
+
+  const [globeMode, setGlobeMode] = useState('idle')
+  const [radioQuery, setRadioQuery] = useState('')
+  const [stations, setStations] = useState([])
+  const [playingId, setPlayingId] = useState(null)
+
   const timer = useRef(null)
-  const history = useRef([]) // conversationHistory sent to Groq
+  const history = useRef([])
   const recRef = useRef(null)
+  const audioRef = useRef(null)
 
   useEffect(
     () => () => {
       clearInterval(timer.current)
       stopSpeech()
       recRef.current?.abort?.()
+      audioRef.current?.pause?.()
     },
     []
   )
 
-  // adds an assistant message with the existing typewriter effect
   const typeReply = useCallback((full) => {
     const reply = mk('ai', '', true)
     clearInterval(timer.current)
@@ -168,6 +267,40 @@ export default function App() {
     }, 22)
   }, [])
 
+  const playStation = useCallback(
+    (station) => {
+      if (pageIsHttps() && !isHttpsUrl(station.url)) {
+        typeReply(
+          `Stream blocked: ${station.name} only offers HTTP. This site is HTTPS, so the browser refuses insecure audio.`
+        )
+        return
+      }
+      if (!audioRef.current) audioRef.current = new Audio()
+      const a = audioRef.current
+      a.pause()
+      a.crossOrigin = 'anonymous'
+      a.src = station.url
+      a.play()
+        .then(() => setPlayingId(station.id))
+        .catch(() => {
+          setPlayingId(null)
+          typeReply(
+            `Unable to open stream for ${station.name}. The station may be offline or blocking playback.`
+          )
+        })
+      // optional click count — ignore 404s
+      fetch(`${RB}/json/url/${encodeURIComponent(station.id)}`, {
+        headers: { 'User-Agent': 'FluxHUD/1.0' },
+      }).catch(() => {})
+    },
+    [typeReply]
+  )
+
+  const stopRadio = useCallback(() => {
+    audioRef.current?.pause?.()
+    setPlayingId(null)
+  }, [])
+
   const handleSubmit = useCallback(
     async (text) => {
       if (text.toLowerCase() === 'clear') {
@@ -179,7 +312,7 @@ export default function App() {
         return
       }
 
-      unlockSpeech() // keeps TTS allowed on phones after the async API call
+      unlockSpeech()
       stopSpeech()
       clearInterval(timer.current)
 
@@ -187,7 +320,56 @@ export default function App() {
       setPulse((p) => p + 1)
       setStatus('processing')
 
-      // ---------- Weather slash command (bypasses Groq, updates panel) ----------
+      if (isRadCommand(text)) {
+        const q = extractRadQuery(text)
+        try {
+          if (q.toLowerCase() === 'stop' || q.toLowerCase() === 'off') {
+            stopRadio()
+            setStations([])
+            setGlobeMode('idle')
+            setRadioQuery('')
+            const msg = 'Radio transmission ended. Signal globe idle.'
+            typeReply(msg)
+            speakText(msg, {
+              onStart: () => setStatus('speaking'),
+              onEnd: () => setStatus('ready'),
+            })
+            return
+          }
+          if (!q) {
+            const msg = 'Specify a place or tag. Example: /rad philippines'
+            typeReply(msg)
+            speakText(msg, {
+              onStart: () => setStatus('speaking'),
+              onEnd: () => setStatus('ready'),
+            })
+            return
+          }
+          setGlobeMode('scanning')
+          setRadioQuery(q)
+          const list = await fetchRadioStations(q)
+          setStations(list)
+          setGlobeMode('locked')
+          const msg = `Signal lock on ${q}: ${list.length} HTTPS stations orbiting the globe. Click a node to transmit.`
+          history.current.push({ role: 'user', content: text })
+          history.current.push({ role: 'assistant', content: msg })
+          typeReply(msg)
+          speakText(msg, {
+            onStart: () => setStatus('speaking'),
+            onEnd: () => setStatus('ready'),
+          })
+        } catch (err) {
+          setGlobeMode('idle')
+          const msg = err?.message || 'Radio scan failed.'
+          typeReply(msg)
+          speakText(msg, {
+            onStart: () => setStatus('speaking'),
+            onEnd: () => setStatus('ready'),
+          })
+        }
+        return
+      }
+
       if (isWeatherCommand(text)) {
         const location = extractWeatherLocation(text)
         try {
@@ -217,9 +399,7 @@ export default function App() {
               onStart: () => setStatus('speaking'),
               onEnd: () => setStatus('ready'),
             })
-          } else {
-            setStatus('ready')
-          }
+          } else setStatus('ready')
         } catch (err) {
           const msg = err?.message || 'Weather lookup failed.'
           typeReply(msg)
@@ -231,30 +411,25 @@ export default function App() {
         return
       }
 
-      // ---------- Normal Groq path ----------
       history.current.push({ role: 'user', content: text })
-
       try {
         const raw = (await askGroq(history.current)) || '...'
         history.current.push({ role: 'assistant', content: raw })
         typeReply(raw)
-
         const clean = cleanForSpeech(raw)
         if (clean) {
           speakText(clean, {
             onStart: () => setStatus('speaking'),
             onEnd: () => setStatus('ready'),
           })
-        } else {
-          setStatus('ready')
-        }
+        } else setStatus('ready')
       } catch (err) {
-        history.current.pop() // drop the failed user turn so history stays consistent
+        history.current.pop()
         typeReply(`Connection fault: ${err.message}`)
         setStatus('ready')
       }
     },
-    [typeReply]
+    [typeReply, stopRadio, playStation]
   )
 
   const handleMic = useCallback(() => {
@@ -272,7 +447,6 @@ export default function App() {
       typeReply('Voice input is not supported in this browser. Try Chrome, Edge or Safari.')
       return
     }
-
     unlockSpeech()
     stopSpeech()
     const rec = new SpeechRecognitionCtor()
@@ -301,7 +475,6 @@ export default function App() {
 
   const stageW = mobile ? MW : W
   const stageH = mobile ? MH : H
-
   const stageStyle = mobile
     ? { width: MW, height: MH, left: 0, top: 0, transformOrigin: '0 0', transform: `scale(${scale})` }
     : { width: W, height: H, transform: `translate(-50%, -50%) scale(${scale})` }
@@ -311,7 +484,6 @@ export default function App() {
       <Background slice={mobile} />
       <Overlays />
 
-      {/* centre piece */}
       <Platform style={mobile ? M.platform : undefined} />
       <OrbRings style={mobile ? M.rings : undefined} />
       <div className="orb-wrap" style={mobile ? M.orb : undefined}>
@@ -325,7 +497,6 @@ export default function App() {
         </>
       )}
 
-      {/* panels — only AnalyticsB receives weather; others unchanged */}
       <SystemDiagnostics style={mobile ? M.diag : { left: 70, top: 76, width: 154, height: 100 }} />
       <NetworkStatus style={mobile ? M.net : { left: 231, top: 76, width: 122, height: 100 }} />
       <AnalyticsA style={mobile ? M.anA : { left: 70, top: 184, width: 154, height: 136 }} />
@@ -334,7 +505,6 @@ export default function App() {
         weather={weather}
       />
 
-      {/* reticles (desktop only) */}
       {!mobile && (
         <>
           <Reticle size={150} cls="ret-left" dense>
@@ -343,7 +513,17 @@ export default function App() {
               <span>LNG 120.9842</span>
             </div>
           </Reticle>
-          <Reticle size={178} cls="ret-right" />
+          <div className="signal-globe-wrap">
+            <SignalGlobe
+              size={178}
+              mode={globeMode}
+              label={radioQuery}
+              playing={!!playingId}
+              stations={stations}
+              playingId={playingId}
+              onSelect={playStation}
+            />
+          </div>
           <div className="deco-lines left">
             <span>▸ SECTOR 07 · LOCKED</span>
             <span>▸ TRACE 0x4F2A19</span>
@@ -352,7 +532,6 @@ export default function App() {
         </>
       )}
 
-      {/* terminals */}
       <TextTerminal
         messages={messages}
         style={mobile ? M.text : { left: 1010, top: 65, width: 335, height: 262 }}

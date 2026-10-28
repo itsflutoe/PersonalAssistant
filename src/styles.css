@@ -30,8 +30,6 @@ body {
 
 .stage > * { position: absolute; }
 
-/* ---------- background + overlays ---------- */
-
 .bg-scene { inset: 0; width: 100%; height: 100%; }
 
 .grid-overlay {
@@ -72,8 +70,6 @@ body {
   pointer-events: none;
 }
 
-/* ---------- centre piece ---------- */
-
 .orb-wrap { left: 483px; top: 155px; width: 440px; height: 440px; pointer-events: none; }
 .orb-canvas { display: block; }
 .orb-rings { left: 473px; top: 145px; width: 460px; height: 460px; pointer-events: none; filter: drop-shadow(0 0 4px rgba(60, 200, 255, 0.6)); }
@@ -91,8 +87,6 @@ body {
 
 .blink { animation: blink 1.2s steps(2, jump-none) infinite; }
 @keyframes blink { 50% { opacity: 0.1; } }
-
-/* ---------- reticles ---------- */
 
 .reticle { filter: drop-shadow(0 0 4px rgba(60, 200, 255, 0.55)); pointer-events: none; }
 .reticle svg { display: block; }
@@ -126,7 +120,346 @@ body {
 }
 .deco-lines.left { left: 72px; top: 342px; }
 
-/* ---------- panels ---------- */
+/* ---------- signal globe ---------- */
+
+.signal-globe-wrap {
+  left: 1114px;
+  top: 381px;
+  width: 178px;
+  height: 178px;
+  z-index: 5;
+  overflow: visible;
+}
+.signal-globe-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.signal-globe {
+  position: relative;
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  filter: drop-shadow(0 0 10px rgba(60, 200, 255, 0.65));
+  cursor: default;
+  color: inherit;
+  font: inherit;
+}
+.signal-globe.clickable { cursor: pointer; }
+.signal-globe.clickable:hover { filter: drop-shadow(0 0 14px rgba(100, 220, 255, 0.95)); }
+.signal-globe svg,
+.signal-globe canvas { display: block; pointer-events: none; overflow: visible; }
+.signal-globe.globe-scan canvas { filter: drop-shadow(0 0 10px rgba(80, 210, 255, 0.9)); }
+.signal-globe.on-air {
+  filter: drop-shadow(0 0 12px rgba(80, 255, 160, 0.55));
+}
+.signal-globe.on-air .globe-mode {
+  color: #7dffb3;
+  text-shadow: 0 0 8px rgba(80, 255, 160, 0.9);
+}
+
+/* Globe stays centered — only rotates on its axis */
+.globe-axis,
+.globe-axis-fast {
+  transform-origin: 0px 0px;
+  transform-box: fill-box;
+}
+.globe-axis { animation: globeAxis 48s linear infinite; }
+.globe-axis-fast { animation: globeAxis 16s linear infinite; }
+@keyframes globeAxis {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Satellite is the only element that orbits around the globe */
+.sat-orbit,
+.sat-orbit-fast {
+  transform-origin: 0px 0px;
+  transform-box: fill-box;
+}
+.sat-orbit { animation: satOrbit 14s linear infinite; }
+.sat-orbit-fast { animation: satOrbit 5s linear infinite; }
+@keyframes satOrbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.radio-waves .wave-a { animation: wavePulse 1.4s ease-out infinite; }
+.radio-waves .wave-b { animation: wavePulse 1.4s ease-out infinite 0.25s; }
+.radio-waves .wave-c { animation: wavePulse 1.4s ease-out infinite 0.5s; }
+@keyframes wavePulse {
+  0% { opacity: 0.15; }
+  40% { opacity: 0.95; }
+  100% { opacity: 0.15; }
+}
+
+.globe-caption {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-family: 'Share Tech Mono', monospace;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.globe-mode {
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  color: var(--c-bright);
+  text-shadow: 0 0 6px rgba(80, 210, 255, 0.8);
+}
+.globe-label {
+  font-size: 7px;
+  letter-spacing: 0.8px;
+  color: var(--c-dim);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- orbit station nodes (around signal globe) ---------- */
+
+.orbit-nodes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.orbit-node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 7;
+}
+
+.orbit-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  margin: 2px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e8fbff, #4fd1ff 55%, #1a7ab0);
+  box-shadow:
+    0 0 6px rgba(80, 210, 255, 0.95),
+    0 0 14px rgba(40, 170, 255, 0.55),
+    inset 0 0 4px rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(180, 240, 255, 0.85);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.orbit-node:hover .orbit-dot {
+  transform: scale(1.35);
+  box-shadow:
+    0 0 10px rgba(120, 230, 255, 1),
+    0 0 22px rgba(60, 200, 255, 0.8);
+}
+
+.orbit-node.active .orbit-dot {
+  background: radial-gradient(circle at 35% 30%, #e8fff4, #42ff93 55%, #0d8a4a);
+  border-color: rgba(160, 255, 200, 0.95);
+  box-shadow:
+    0 0 10px rgba(80, 255, 160, 1),
+    0 0 22px rgba(40, 220, 120, 0.75),
+    inset 0 0 4px rgba(255, 255, 255, 0.55);
+  animation: orbitPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes orbitPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.orbit-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 6px;
+  min-width: 72px;
+  max-width: 140px;
+  background: rgba(4, 22, 36, 0.92);
+  border: 1px solid rgba(79, 209, 255, 0.55);
+  box-shadow: 0 0 10px rgba(40, 170, 255, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.orbit-node:hover .orbit-tip,
+.orbit-node.active .orbit-tip {
+  display: flex;
+}
+
+.orbit-tip-name {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.4px;
+  color: var(--c-bright);
+  max-width: 128px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.orbit-node.active .orbit-tip-name {
+  color: #7dffb3;
+}
+
+.orbit-tip-meta {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 0.4px;
+  color: var(--c-dim);
+}
+
+.radio-panel {
+  position: absolute;
+  right: 24px;
+  top: 340px;
+  width: 240px;
+  max-height: 280px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(9, 44, 68, 0.92), rgba(4, 22, 36, 0.94));
+  border: 1px solid var(--line);
+  box-shadow: inset 0 0 18px rgba(40, 170, 255, 0.14), 0 0 16px rgba(40, 170, 255, 0.35);
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+}
+.radio-panel.min { max-height: 28px; }
+.radio-panel::before,
+.radio-panel::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--c-bright);
+  pointer-events: none;
+}
+.radio-panel::before { left: -2px; top: -2px; border-right: 0; border-bottom: 0; }
+.radio-panel::after { right: -2px; bottom: -2px; border-left: 0; border-top: 0; }
+
+.radio-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--c-bright);
+  background: rgba(50, 160, 230, 0.22);
+  border-bottom: 1px solid rgba(79, 209, 255, 0.4);
+  text-shadow: 0 0 6px rgba(80, 210, 255, 0.8);
+  flex: none;
+}
+.radio-panel-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.radio-panel-actions { display: flex; gap: 2px; flex: none; }
+.rp-btn {
+  width: 20px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--c-dim);
+  background: rgba(79, 209, 255, 0.08);
+  border: 1px solid rgba(79, 209, 255, 0.35);
+  cursor: pointer;
+}
+.rp-btn:hover { color: var(--c-bright); border-color: var(--c); }
+
+.radio-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+}
+.radio-panel-meta {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.6px;
+  color: var(--c-dim);
+  margin-bottom: 6px;
+}
+.radio-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.radio-list::-webkit-scrollbar { width: 3px; }
+.radio-list::-webkit-scrollbar-thumb { background: var(--c-bright); }
+
+.radio-item {
+  width: 100%;
+  text-align: left;
+  padding: 5px 6px;
+  font-family: inherit;
+  color: var(--text);
+  background: rgba(79, 209, 255, 0.06);
+  border: 1px solid rgba(79, 209, 255, 0.22);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.radio-item:hover {
+  border-color: var(--c);
+  background: rgba(79, 209, 255, 0.12);
+}
+.radio-item.playing {
+  border-color: #7dffb3;
+  background: rgba(80, 255, 160, 0.12);
+  box-shadow: 0 0 10px rgba(80, 255, 160, 0.35);
+}
+.ri-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--c-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.radio-item.playing .ri-name { color: #7dffb3; }
+.ri-meta {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  color: var(--c-dim);
+}
 
 .cluster-frame {
   left: 65px; top: 65px; width: 293px; height: 260px;
@@ -172,11 +505,7 @@ body {
 .ring-text { display: flex; flex-direction: column; align-items: center; line-height: 1; }
 .ring-text b { font-size: 14px; font-weight: 600; text-shadow: 0 0 6px var(--c); }
 .ring-text small { font-size: 6px; letter-spacing: 1px; color: var(--c-dim); margin-top: 1px; }
-.tiny { font-size: 7px; font-weight: 600; }
-.ic { display: inline-flex; color: var(--c-bright); filter: drop-shadow(0 0 3px var(--c)); }
-.ic.big { transform: scale(1.1); }
 
-/* system diagnostics */
 .diag { display: flex; align-items: center; gap: 7px; height: 100%; }
 .diag-stats { display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .stat { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 4px; align-items: center; }
@@ -184,27 +513,19 @@ body {
 .stat b { grid-column: 1; font-size: 13px; font-weight: 600; line-height: 1; color: var(--c-bright); text-shadow: 0 0 6px rgba(80, 210, 255, 0.8); }
 .stat .ring { grid-column: 2; grid-row: 1 / span 2; }
 
-/* network */
 .net { display: flex; flex-direction: column; gap: 3px; height: 100%; }
 .net-top { display: flex; align-items: center; justify-content: space-between; }
 .net-rings { display: flex; align-items: center; gap: 4px; }
-.net-wave { margin-left: auto; }
 .bar-row { display: flex; align-items: center; gap: 4px; font-size: 6.5px; letter-spacing: 0.6px; color: var(--c-dim); }
 .bar-row span { width: 28px; flex: none; }
 .bar { flex: 1; height: 4px; background: rgba(79, 209, 255, 0.15); position: relative; overflow: hidden; }
 .bar i { display: block; height: 100%; background: linear-gradient(90deg, rgba(79, 209, 255, 0.5), #8aeaff); box-shadow: 0 0 6px var(--c); transition: width 1.2s ease; }
 
-/* analytics A */
 .an-a { display: flex; flex-direction: column; gap: 5px; height: 100%; }
 .an-a-top { display: flex; gap: 6px; align-items: center; }
 .an-bars { flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .an-bars .bar-row span { width: 20px; }
-.an-mini { display: flex; flex-direction: column; gap: 2px; }
-.an-big { border: 1px solid rgba(79, 209, 255, 0.22); padding: 2px; background: rgba(0, 0, 0, 0.15); }
-.an-x { display: flex; justify-content: space-between; font-family: 'Share Tech Mono', monospace; font-size: 6px; color: var(--c-dim); padding-top: 1px; }
-.area { display: block; overflow: visible; }
 
-/* analytics B */
 .an-b { display: flex; flex-direction: column; gap: 6px; height: 100%; }
 .an-b-top { display: flex; gap: 6px; align-items: stretch; }
 .vmeter { display: flex; gap: 3px; flex: 1; justify-content: flex-end; }
@@ -219,8 +540,6 @@ body {
 }
 .chip:hover { color: var(--c-bright); border-color: var(--c); }
 .chip.on { color: #031724; background: var(--c); border-color: var(--c-bright); box-shadow: 0 0 8px rgba(79, 209, 255, 0.7); }
-
-/* ---------- terminals ---------- */
 
 .term {
   position: absolute;
@@ -249,7 +568,6 @@ body {
 }
 .term-head .x { font-style: normal; font-size: 12px; line-height: 1; cursor: pointer; opacity: 0.85; }
 
-/* chat log */
 .log {
   flex: 1;
   overflow-y: auto;
@@ -270,13 +588,11 @@ body {
 
 .caret { display: inline-block; width: 5px; height: 10px; margin-left: 2px; background: var(--c-bright); vertical-align: -1px; animation: blink 0.8s steps(2, jump-none) infinite; }
 
-/* command terminal */
 .toolbar {
   display: flex; align-items: center; gap: 5px;
   padding: 5px 8px;
   border-bottom: 1px solid rgba(79, 209, 255, 0.25);
 }
-.tb-dot { width: 14px; height: 14px; border: 1px solid var(--c-dim); background: rgba(79, 209, 255, 0.12); }
 .tool {
   width: 22px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
   color: var(--c-dim); background: rgba(79, 209, 255, 0.07);
@@ -312,8 +628,6 @@ body {
 .submit:hover { background: linear-gradient(180deg, rgba(90, 200, 255, 0.6), rgba(40, 130, 190, 0.6)); }
 .submit:active { transform: translateY(1px); }
 
-/* ---------- status badge + mic ---------- */
-
 .status-badge {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 9px; font-weight: 600; letter-spacing: 1.2px;
@@ -329,8 +643,6 @@ body {
 .tool.mic.live { color: #fff; background: #ff0055; border-color: #ff5c93; box-shadow: 0 0 10px #ff0055; animation: micpulse 0.9s ease-in-out infinite; }
 @keyframes micpulse { 50% { box-shadow: 0 0 18px #ff0055; } }
 
-/* ---------- phone (portrait) layout ---------- */
-
 .viewport.mobile { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .stage.mobile { overflow: hidden; }
 .stage.mobile .flare { display: none; }
@@ -339,7 +651,6 @@ body {
 .stage.mobile .msg-label { font-size: 12px; }
 .stage.mobile .msg-text { font-size: 13px; }
 .stage.mobile .cmd-label { font-size: 14px; }
-.stage.mobile .cmd-input { font-size: 16px; } /* 16px stops iOS zooming on focus */
+.stage.mobile .cmd-input { font-size: 16px; }
 .stage.mobile .panel-title { font-size: 9.5px; }
-.stage.mobile .status-badge { font-size: 8.5px; padding: 1px 5px; letter-spacing: 0.8px; }
-.stage.mobile .tb-clock { font-size: 9px; padding: 1px 4px; }
+.stage.mobile .status-badge { font-size: 10px; }
