@@ -4,6 +4,7 @@ import Orb from './Orb.jsx'
 import { Background, Overlays, OrbRings, Platform, Connectors, Reticle, SignalGlobe } from './Decor.jsx'
 import { SystemDiagnostics, NetworkStatus, AnalyticsA, AnalyticsB } from './Panels.jsx'
 import { TextTerminal, CommandTerminal } from './Terminals.jsx'
+import Sandbox, { extractCodeBlocks, pickRunnableBlock } from './Sandbox.jsx'
 import {
   askGroq,
   cleanForSpeech,
@@ -41,8 +42,6 @@ const M = {
 }
 
 const RB = 'https://de1.api.radio-browser.info'
-
-/* ---------- Weather helpers ---------- */
 
 function conditionLabel(code) {
   const c = code ?? -1
@@ -121,7 +120,13 @@ function extractWeatherLocation(text) {
   return text.trim().replace(/^\/(?:weather|wheather)\s*/i, '').trim()
 }
 
-/* ---------- Radio (/rad) helpers — Radio Browser ---------- */
+function isSandboxCommand(text) {
+  return text.trim().toLowerCase().startsWith('/sandbox')
+}
+
+function sandboxCommandArg(text) {
+  return text.trim().replace(/^\/sandbox\s*/i, '').trim().toLowerCase()
+}
 
 function isRadCommand(text) {
   return text.trim().toLowerCase().startsWith('/rad')
@@ -208,11 +213,8 @@ async function fetchRadioStations(query) {
     })
     .filter((s) => s.url)
 
-  // On HTTPS pages (Vercel), browsers block plain HTTP audio (mixed content).
   const requireHttps = pageIsHttps()
   let usable = requireHttps ? mapped.filter((s) => s.secure) : mapped
-
-  // Prefer higher bitrate among secure streams
   usable = usable.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))
 
   if (usable.length === 0) {
@@ -232,6 +234,8 @@ export default function App() {
   const [pulse, setPulse] = useState(0)
   const [status, setStatus] = useState('ready')
   const [weather, setWeather] = useState(null)
+  const [sandboxActive, setSandboxActive] = useState(false)
+  const [sandboxPayload, setSandboxPayload] = useState(null)
 
   const [globeMode, setGlobeMode] = useState('idle')
   const [radioQuery, setRadioQuery] = useState('')
@@ -288,7 +292,6 @@ export default function App() {
             `Unable to open stream for ${station.name}. The station may be offline or blocking playback.`
           )
         })
-      // optional click count — ignore 404s
       fetch(`${RB}/json/url/${encodeURIComponent(station.id)}`, {
         headers: { 'User-Agent': 'FluxHUD/1.0' },
       }).catch(() => {})
@@ -309,6 +312,8 @@ export default function App() {
         history.current = []
         setMessages([])
         setStatus('ready')
+        setSandboxActive(false)
+        setSandboxPayload(null)
         return
       }
 
@@ -319,6 +324,31 @@ export default function App() {
       setMessages((m) => [...m, mk('user', text)])
       setPulse((p) => p + 1)
       setStatus('processing')
+
+      if (isSandboxCommand(text)) {
+        const arg = sandboxCommandArg(text)
+        if (arg === 'off' || arg === 'close' || arg === 'exit') {
+          setSandboxActive(false)
+          setSandboxPayload(null)
+          const msg = 'Sandbox deactivated. HUD restored to primary systems.'
+          typeReply(msg)
+          speakText(msg, {
+            onStart: () => setStatus('speaking'),
+            onEnd: () => setStatus('ready'),
+          })
+          return
+        }
+        setSandboxPayload(null)
+        setSandboxActive(true)
+        const msg =
+          'Sandbox environment activated. Green injection channel is live. Ask for code and it will stream here automatically — or say /sandbox off to exit.'
+        typeReply(msg)
+        speakText(msg, {
+          onStart: () => setStatus('speaking'),
+          onEnd: () => setStatus('ready'),
+        })
+        return
+      }
 
       if (isRadCommand(text)) {
         const q = extractRadQuery(text)
@@ -416,6 +446,13 @@ export default function App() {
         const raw = (await askGroq(history.current)) || '...'
         history.current.push({ role: 'assistant', content: raw })
         typeReply(raw)
+
+        const block = pickRunnableBlock(extractCodeBlocks(raw))
+        if (block) {
+          setSandboxPayload(block)
+          setSandboxActive(true)
+        }
+
         const clean = cleanForSpeech(raw)
         if (clean) {
           speakText(clean, {
@@ -487,7 +524,7 @@ export default function App() {
       <Platform style={mobile ? M.platform : undefined} />
       <OrbRings style={mobile ? M.rings : undefined} />
       <div className="orb-wrap" style={mobile ? M.orb : undefined}>
-        <Orb pulse={pulse} mode={status} />
+        <Orb pulse={pulse} mode={status} tint={sandboxActive ? 'green' : 'cyan'} />
       </div>
 
       {!mobile && (
@@ -536,6 +573,19 @@ export default function App() {
         messages={messages}
         style={mobile ? M.text : { left: 1010, top: 65, width: 335, height: 262 }}
       />
+      <Sandbox
+        active={sandboxActive}
+        payload={sandboxPayload}
+        onClose={() => {
+          setSandboxActive(false)
+          setSandboxPayload(null)
+        }}
+        style={
+          mobile
+            ? { left: 12, top: 392, width: 376, height: 230 }
+            : { left: 1010, top: 340, width: 335, height: 250 }
+        }
+      />
       <CommandTerminal
         onSubmit={handleSubmit}
         onMic={handleMic}
@@ -548,11 +598,11 @@ export default function App() {
 
   if (mobile) {
     return (
-      <div className="viewport mobile">
+      <div className={`viewport mobile${sandboxActive ? ' sandbox-mode' : ''}`}>
         <div style={{ position: 'relative', width: stageW * scale, height: stageH * scale }}>{stage}</div>
       </div>
     )
   }
 
-  return <div className="viewport">{stage}</div>
+  return <div className={`viewport${sandboxActive ? ' sandbox-mode' : ''}`}>{stage}</div>
 }

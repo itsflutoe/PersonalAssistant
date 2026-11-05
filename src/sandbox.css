@@ -1,0 +1,334 @@
+/* ========== Full HUD green theme when sandbox is active ========== */
+.viewport.sandbox-mode {
+  --c: #3dff9a;
+  --c-bright: #9affe0;
+  --c-dim: rgba(61, 255, 154, 0.55);
+  --line: rgba(61, 255, 154, 0.55);
+  --panel: rgba(4, 40, 28, 0.55);
+  --text: #c8ffe8;
+  background: #010a06 !important;
+}
+
+.viewport.sandbox-mode .stage {
+  background: #02140c;
+}
+
+.viewport.sandbox-mode .grid-overlay {
+  background-image:
+    linear-gradient(rgba(61, 255, 154, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 255, 154, 0.08) 1px, transparent 1px);
+}
+
+.viewport.sandbox-mode .flare {
+  background:
+    radial-gradient(ellipse 50% 50% at 25% 50%, rgba(160, 255, 200, 0.9), rgba(40, 200, 120, 0.3) 40%, transparent 72%),
+    linear-gradient(90deg, transparent, rgba(80, 255, 160, 0.5), transparent) center / 100% 2px no-repeat;
+}
+
+.viewport.sandbox-mode .orb-rings {
+  filter: drop-shadow(0 0 6px rgba(60, 255, 160, 0.85)) !important;
+}
+
+.viewport.sandbox-mode .connectors {
+  filter: drop-shadow(0 0 3px rgba(60, 255, 160, 0.85));
+}
+
+.viewport.sandbox-mode .cluster-frame {
+  border-color: rgba(61, 255, 154, 0.35);
+}
+.viewport.sandbox-mode .cluster-frame::before,
+.viewport.sandbox-mode .cluster-frame::after {
+  border-color: #3dff9a;
+}
+
+.viewport.sandbox-mode .panel {
+  background: linear-gradient(180deg, rgba(8, 48, 32, 0.55), rgba(4, 28, 18, 0.55));
+  border-color: rgba(61, 255, 154, 0.5);
+  box-shadow: inset 0 0 14px rgba(40, 200, 120, 0.14), 0 0 8px rgba(40, 200, 120, 0.2);
+}
+
+.viewport.sandbox-mode .panel-title {
+  color: #9affe0;
+  border-bottom-color: rgba(61, 255, 154, 0.35);
+  background: rgba(40, 180, 100, 0.14);
+  text-shadow: 0 0 5px rgba(80, 255, 160, 0.8);
+}
+
+.viewport.sandbox-mode .term {
+  background: linear-gradient(180deg, rgba(8, 48, 32, 0.7), rgba(4, 28, 18, 0.72));
+  border-color: rgba(61, 255, 154, 0.5);
+  box-shadow: inset 0 0 18px rgba(40, 200, 120, 0.16), 0 0 12px rgba(40, 200, 120, 0.28);
+}
+
+.viewport.sandbox-mode .term::before,
+.viewport.sandbox-mode .term::after {
+  border-color: #9affe0;
+}
+
+.viewport.sandbox-mode .term-head {
+  color: #9affe0;
+  background: rgba(40, 160, 100, 0.22);
+  border-bottom-color: rgba(61, 255, 154, 0.45);
+  text-shadow: 0 0 6px rgba(80, 255, 160, 0.8);
+}
+
+.viewport.sandbox-mode .msg-label,
+.viewport.sandbox-mode .cmd-label,
+.viewport.sandbox-mode .ring-text b,
+.viewport.sandbox-mode .stat b,
+.viewport.sandbox-mode .ri-name {
+  color: #9affe0;
+  text-shadow: 0 0 6px rgba(80, 255, 160, 0.7);
+}
+
+.viewport.sandbox-mode .msg-text { color: #d6ffe8; }
+.viewport.sandbox-mode .msg.ai .msg-text { color: #9fd9b8; }
+
+.viewport.sandbox-mode .cmd-input {
+  color: #e6fff4;
+  caret-color: #9affe0;
+  border-color: rgba(61, 255, 154, 0.4);
+}
+.viewport.sandbox-mode .cmd-input:focus {
+  border-color: #9affe0;
+  box-shadow: inset 0 0 14px rgba(40, 180, 120, 0.28), 0 0 12px rgba(80, 255, 160, 0.55);
+}
+
+.viewport.sandbox-mode .tool,
+.viewport.sandbox-mode .chip,
+.viewport.sandbox-mode .bar {
+  border-color: rgba(61, 255, 154, 0.4);
+  color: rgba(61, 255, 154, 0.7);
+  background: rgba(61, 255, 154, 0.08);
+}
+.viewport.sandbox-mode .bar i,
+.viewport.sandbox-mode .vtrack i,
+.viewport.sandbox-mode .tb-meter i {
+  background: linear-gradient(90deg, rgba(61, 255, 154, 0.5), #9affe0);
+  box-shadow: 0 0 6px #3dff9a;
+}
+.viewport.sandbox-mode .caret {
+  background: #9affe0;
+}
+.viewport.sandbox-mode .log::-webkit-scrollbar-thumb {
+  background: #9affe0;
+  box-shadow: 0 0 6px #3dff9a;
+}
+
+.viewport.sandbox-mode .signal-globe {
+  filter: drop-shadow(0 0 10px rgba(60, 255, 160, 0.7));
+}
+.viewport.sandbox-mode .globe-mode {
+  color: #9affe0;
+  text-shadow: 0 0 6px rgba(80, 255, 160, 0.85);
+}
+.viewport.sandbox-mode .orbit-dot {
+  background: radial-gradient(circle at 35% 30%, #e8fff4, #3dff9a 55%, #0d8a4a);
+  border-color: rgba(160, 255, 200, 0.9);
+  box-shadow: 0 0 6px rgba(80, 255, 160, 0.95), 0 0 14px rgba(40, 220, 120, 0.55);
+}
+
+.viewport.sandbox-mode .deco-lines,
+.viewport.sandbox-mode .ret-readout,
+.viewport.sandbox-mode .globe-label {
+  color: rgba(61, 255, 154, 0.65);
+}
+
+.viewport.sandbox-mode .platform {
+  filter: drop-shadow(0 0 8px rgba(60, 255, 160, 0.45));
+}
+
+/* ========== Sandbox as small text-terminal-style tab ========== */
+.sandbox-term {
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+.sandbox-term .term-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sandbox-term .sandbox-head-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.sandbox-term.is-fs {
+  position: fixed !important;
+  inset: 0 !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  margin: 0;
+  border-radius: 0;
+  transform: none !important;
+}
+
+.sandbox-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: rgba(0, 12, 8, 0.35);
+}
+
+.sandbox-code {
+  margin: 0;
+  padding: 8px 10px;
+  height: 100%;
+  overflow: auto;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #9affe0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sandbox-code::-webkit-scrollbar { width: 3px; }
+.sandbox-code::-webkit-scrollbar-thumb {
+  background: #9affe0;
+}
+
+.sandbox-caret {
+  display: inline-block;
+  width: 5px;
+  height: 10px;
+  margin-left: 2px;
+  background: #9affe0;
+  vertical-align: -1px;
+  animation: blink 0.85s steps(2, jump-none) infinite;
+}
+
+.sandbox-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #0a1210;
+}
+
+.sandbox-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 10px;
+  background: rgba(0, 10, 6, 0.75);
+}
+
+.sandbox-card {
+  width: 100%;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(8, 48, 32, 0.95), rgba(4, 24, 16, 0.96));
+  border: 1px solid rgba(61, 255, 154, 0.5);
+  box-shadow: 0 0 16px rgba(40, 255, 160, 0.2);
+  position: relative;
+}
+
+.sandbox-card-label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: #3dff9a;
+  margin-bottom: 4px;
+}
+
+.sandbox-card-msg {
+  font-size: 11px;
+  color: #c8ffe8;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.sandbox-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sb-btn {
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  padding: 4px 8px;
+  cursor: pointer;
+  border: 1px solid rgba(61, 255, 154, 0.45);
+  background: rgba(61, 255, 154, 0.08);
+  color: #9affe0;
+  line-height: 1;
+}
+.sb-btn:hover {
+  color: #031724;
+  background: #3dff9a;
+  border-color: #9affe0;
+}
+.sb-exec {
+  flex: 1;
+  background: rgba(40, 200, 140, 0.22);
+  border-color: #3dff9a;
+}
+.sb-close {
+  width: 18px;
+  height: 16px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.sandbox-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 8px;
+  border-top: 1px solid rgba(61, 255, 154, 0.28);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: rgba(154, 255, 224, 0.7);
+  background: rgba(0, 30, 20, 0.4);
+  flex: none;
+}
+
+.sandbox-awaiting {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+}
+.sandbox-awaiting-title {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: #3dff9a;
+  text-shadow: 0 0 10px rgba(61, 255, 154, 0.5);
+}
+.sandbox-awaiting-msg {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #c8ffe8;
+  max-width: 280px;
+  opacity: 0.9;
+}
+.sandbox-awaiting-hint {
+  margin-top: 4px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: rgba(154, 255, 224, 0.5);
+}

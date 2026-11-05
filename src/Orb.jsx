@@ -5,7 +5,6 @@ const R0 = 128
 const N = 2400
 const GOLDEN = Math.PI * (3 - Math.sqrt(5))
 
-// Pre-compute points on a sphere (fibonacci lattice).
 const base = Array.from({ length: N }, (_, i) => {
   const y = 1 - (2 * (i + 0.5)) / N
   const r = Math.sqrt(1 - y * y)
@@ -13,7 +12,6 @@ const base = Array.from({ length: N }, (_, i) => {
   return { x: Math.cos(th) * r, y, z: Math.sin(th) * r, s: Math.random() }
 })
 
-// Orbiting bands of particles around the sphere.
 const bands = [
   { tilt: 0.5, speed: 0.35, radius: 1.18, count: 420, spin: 0.3 },
   { tilt: -0.9, speed: -0.25, radius: 1.3, count: 360, spin: 1.1 },
@@ -27,10 +25,11 @@ const bands = [
   })),
 }))
 
-export default function Orb({ pulse, mode = 'ready' }) {
+export default function Orb({ pulse, mode = 'ready', tint = 'cyan' }) {
   const ref = useRef(null)
   const pulseRef = useRef(0)
   const modeRef = useRef(mode)
+  const tintRef = useRef(tint)
 
   useEffect(() => {
     pulseRef.current = 1
@@ -39,6 +38,10 @@ export default function Orb({ pulse, mode = 'ready' }) {
   useEffect(() => {
     modeRef.current = mode
   }, [mode])
+
+  useEffect(() => {
+    tintRef.current = tint
+  }, [tint])
 
   useEffect(() => {
     const canvas = ref.current
@@ -63,7 +66,7 @@ export default function Orb({ pulse, mode = 'ready' }) {
       let drive = 0.05 + 0.04 * Math.sin(t * 1.6)
       let spin = 1
       let grow = 0
-      let wave = 0.08 // particle surface ripple strength
+      let wave = 0.08
       if (m === 'listening') {
         drive = 0.32 + 0.1 * Math.sin(t * 5.5)
         spin = 1.6
@@ -72,7 +75,6 @@ export default function Orb({ pulse, mode = 'ready' }) {
         drive = 0.16 + 0.1 * Math.sin(t * 9)
         spin = 3
       } else if (m === 'speaking') {
-        // Exaggerated but still clean: stronger breath, reactive waveform, more spin & size
         drive =
           0.38 +
           0.48 *
@@ -91,12 +93,18 @@ export default function Orb({ pulse, mode = 'ready' }) {
       ctx.clearRect(0, 0, SIZE, SIZE)
       ctx.globalCompositeOperation = 'lighter'
 
-      // outer glow — brighter when speaking
       const glowAlpha = m === 'speaking' ? 0.38 + pu * 0.35 : 0.28 + pu * 0.25
+      const green = tintRef.current === 'green'
       let g = ctx.createRadialGradient(c, c, 20, c, c, 215)
-      g.addColorStop(0, `rgba(40,150,255,${glowAlpha})`)
-      g.addColorStop(0.55, 'rgba(20,90,200,0.12)')
-      g.addColorStop(1, 'rgba(0,40,120,0)')
+      if (green) {
+        g.addColorStop(0, `rgba(40,220,120,${glowAlpha})`)
+        g.addColorStop(0.55, 'rgba(20,140,80,0.14)')
+        g.addColorStop(1, 'rgba(0,60,30,0)')
+      } else {
+        g.addColorStop(0, `rgba(40,150,255,${glowAlpha})`)
+        g.addColorStop(0.55, 'rgba(20,90,200,0.12)')
+        g.addColorStop(1, 'rgba(0,40,120,0)')
+      }
       ctx.fillStyle = g
       ctx.fillRect(0, 0, SIZE, SIZE)
 
@@ -129,15 +137,16 @@ export default function Orb({ pulse, mode = 'ready' }) {
         const sz = (0.5 + depth * 1.1) * (0.7 + p.s * 0.7)
         ctx.beginPath()
         ctx.arc(px, py, sz, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(120,220,255,${a})`
+        ctx.fillStyle = green
+          ? `rgba(120,255,180,${a})`
+          : `rgba(120,220,255,${a})`
         ctx.fill()
       }
 
-      // bright core — larger & hotter while speaking
       const coreR = m === 'speaking' ? 26 + pu * 14 : 22 + pu * 8
       g = ctx.createRadialGradient(c, c, 0, c, c, coreR)
       g.addColorStop(0, '#ffffff')
-      g.addColorStop(0.35, 'rgba(160,230,255,0.9)')
+      g.addColorStop(0.35, green ? 'rgba(160,255,200,0.9)' : 'rgba(160,230,255,0.9)')
       g.addColorStop(1, 'transparent')
       ctx.fillStyle = g
       ctx.beginPath()
