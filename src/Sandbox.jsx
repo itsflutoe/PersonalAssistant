@@ -91,7 +91,7 @@ export default function Sandbox({ payload, active, onClose }) {
   }, [])
 
   useEffect(() => {
-    if (!active || !payload?.code) {
+    if (!active) {
       setPhase('idle')
       setStreamed('')
       setFullscreen(false)
@@ -101,6 +101,14 @@ export default function Sandbox({ payload, active, onClose }) {
         frameRef.current.removeAttribute('src')
         frameRef.current.removeAttribute('srcdoc')
       }
+      return
+    }
+
+    if (!payload?.code) {
+      clearInterval(injectTimer.current)
+      setStreamed('')
+      setFullscreen(false)
+      setPhase('awaiting')
       return
     }
 
@@ -162,7 +170,17 @@ export default function Sandbox({ payload, active, onClose }) {
         </div>
 
         <div className="sandbox-body">
-          {phase !== 'preview' && (
+          {phase === 'awaiting' && (
+            <div className="sandbox-awaiting">
+              <div className="sandbox-awaiting-title">CHANNEL OPEN</div>
+              <div className="sandbox-awaiting-msg">
+                Sandbox is active. When Flux returns HTML, JS, or CSS, it will inject here automatically.
+              </div>
+              <div className="sandbox-awaiting-hint">/sandbox off · CLOSE</div>
+            </div>
+          )}
+
+          {phase !== 'preview' && phase !== 'awaiting' && (
             <pre className="sandbox-code">
               {streamed}
               {phase === 'injecting' && <span className="sandbox-caret" />}
@@ -198,6 +216,7 @@ export default function Sandbox({ payload, active, onClose }) {
 
         <div className="sandbox-foot">
           <span>
+            {phase === 'awaiting' && 'SANDBOX ACTIVE · AWAITING PAYLOAD'}
             {phase === 'injecting' && 'INJECTING PAYLOAD…'}
             {phase === 'ready' && 'AWAITING EXECUTE / INSPECT'}
             {phase === 'preview' && `PREVIEW · ${(payload?.lang || 'code').toUpperCase()}`}

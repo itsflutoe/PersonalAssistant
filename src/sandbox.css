@@ -176,3 +176,33 @@
   color: rgba(154, 255, 224, 0.7);
   background: rgba(0, 30, 20, 0.5);
 }
+
+.sandbox-awaiting {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+}
+.sandbox-awaiting-title {
+  font-size: 12px;
+  letter-spacing: 0.28em;
+  color: #3dff9a;
+  text-shadow: 0 0 12px rgba(61, 255, 154, 0.5);
+}
+.sandbox-awaiting-msg {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c8ffe8;
+  max-width: 420px;
+  opacity: 0.9;
+}
+.sandbox-awaiting-hint {
+  margin-top: 8px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(154, 255, 224, 0.55);
+}
