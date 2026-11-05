@@ -4,6 +4,7 @@ import Orb from './Orb.jsx'
 import { Background, Overlays, OrbRings, Platform, Connectors, Reticle, SignalGlobe } from './Decor.jsx'
 import { SystemDiagnostics, NetworkStatus, AnalyticsA, AnalyticsB } from './Panels.jsx'
 import { TextTerminal, CommandTerminal } from './Terminals.jsx'
+import Sandbox, { extractCodeBlocks, pickRunnableBlock } from './Sandbox.jsx'
 import {
   askGroq,
   cleanForSpeech,
@@ -208,11 +209,8 @@ async function fetchRadioStations(query) {
     })
     .filter((s) => s.url)
 
-  // On HTTPS pages (Vercel), browsers block plain HTTP audio (mixed content).
   const requireHttps = pageIsHttps()
   let usable = requireHttps ? mapped.filter((s) => s.secure) : mapped
-
-  // Prefer higher bitrate among secure streams
   usable = usable.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))
 
   if (usable.length === 0) {
@@ -232,6 +230,8 @@ export default function App() {
   const [pulse, setPulse] = useState(0)
   const [status, setStatus] = useState('ready')
   const [weather, setWeather] = useState(null)
+  const [sandboxActive, setSandboxActive] = useState(false)
+  const [sandboxPayload, setSandboxPayload] = useState(null)
 
   const [globeMode, setGlobeMode] = useState('idle')
   const [radioQuery, setRadioQuery] = useState('')
@@ -288,7 +288,6 @@ export default function App() {
             `Unable to open stream for ${station.name}. The station may be offline or blocking playback.`
           )
         })
-      // optional click count — ignore 404s
       fetch(`${RB}/json/url/${encodeURIComponent(station.id)}`, {
         headers: { 'User-Agent': 'FluxHUD/1.0' },
       }).catch(() => {})
@@ -309,6 +308,8 @@ export default function App() {
         history.current = []
         setMessages([])
         setStatus('ready')
+        setSandboxActive(false)
+        setSandboxPayload(null)
         return
       }
 
@@ -416,6 +417,13 @@ export default function App() {
         const raw = (await askGroq(history.current)) || '...'
         history.current.push({ role: 'assistant', content: raw })
         typeReply(raw)
+
+        const block = pickRunnableBlock(extractCodeBlocks(raw))
+        if (block) {
+          setSandboxPayload(block)
+          setSandboxActive(true)
+        }
+
         const clean = cleanForSpeech(raw)
         if (clean) {
           speakText(clean, {
@@ -546,13 +554,30 @@ export default function App() {
     </div>
   )
 
+  const sandboxUi = (
+    <Sandbox
+      active={sandboxActive}
+      payload={sandboxPayload}
+      onClose={() => {
+        setSandboxActive(false)
+        setSandboxPayload(null)
+      }}
+    />
+  )
+
   if (mobile) {
     return (
-      <div className="viewport mobile">
+      <div className={`viewport mobile${sandboxActive ? ' sandbox-mode' : ''}`}>
         <div style={{ position: 'relative', width: stageW * scale, height: stageH * scale }}>{stage}</div>
+        {sandboxUi}
       </div>
     )
   }
 
-  return <div className="viewport">{stage}</div>
+  return (
+    <div className={`viewport${sandboxActive ? ' sandbox-mode' : ''}`}>
+      {stage}
+      {sandboxUi}
+    </div>
+  )
 }
