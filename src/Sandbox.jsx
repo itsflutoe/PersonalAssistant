@@ -59,7 +59,7 @@ function buildPreviewHtml(block) {
   </body></html>`
 }
 
-export default function Sandbox({ payload, active, onClose }) {
+export default function Sandbox({ payload, active, onClose, style }) {
   const [phase, setPhase] = useState('idle')
   const [streamed, setStreamed] = useState('')
   const [fullscreen, setFullscreen] = useState(false)
@@ -137,8 +137,7 @@ export default function Sandbox({ payload, active, onClose }) {
 
   const execute = () => {
     if (!payload) return
-    const html = buildPreviewHtml(payload)
-    loadFrame(html)
+    loadFrame(buildPreviewHtml(payload))
     setPhase('preview')
   }
 
@@ -150,82 +149,83 @@ export default function Sandbox({ payload, active, onClose }) {
   if (!active) return null
 
   return (
-    <div className={`sandbox-root${fullscreen ? ' is-fs' : ''}`}>
-      <div className="sandbox-layer">
-        <div className="sandbox-head">
-          <span>▸ SANDBOX CHANNEL · INJECTION</span>
-          <div className="sandbox-head-actions">
-            {phase === 'preview' && (
-              <button type="button" className="sb-btn" onClick={() => setFullscreen((f) => !f)}>
-                {fullscreen ? 'EXIT FS' : 'FULLSCREEN'}
-              </button>
-            )}
-            <button type="button" className="sb-btn sb-close" onClick={onClose}>
-              ×
+    <section
+      className={`term sandbox-term${fullscreen ? ' is-fs' : ''}`}
+      style={fullscreen ? undefined : style}
+    >
+      <header className="term-head">
+        <span>SANDBOX CHANNEL</span>
+        <div className="sandbox-head-actions">
+          {phase === 'preview' && (
+            <button type="button" className="sb-btn" onClick={() => setFullscreen((f) => !f)}>
+              {fullscreen ? 'EXIT FS' : 'FS'}
             </button>
+          )}
+          <button type="button" className="sb-btn sb-close" onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+      </header>
+
+      <div className="sandbox-body">
+        {phase === 'awaiting' && (
+          <div className="sandbox-awaiting">
+            <div className="sandbox-awaiting-title">CHANNEL OPEN</div>
+            <div className="sandbox-awaiting-msg">
+              Sandbox is active. When Flux returns HTML, JS, or CSS, it will inject here automatically.
+            </div>
+            <div className="sandbox-awaiting-hint">/sandbox off · CLOSE</div>
           </div>
-        </div>
+        )}
 
-        <div className="sandbox-body">
-          {phase === 'awaiting' && (
-            <div className="sandbox-awaiting">
-              <div className="sandbox-awaiting-title">CHANNEL OPEN</div>
-              <div className="sandbox-awaiting-msg">
-                Sandbox is active. When Flux returns HTML, JS, or CSS, it will inject here automatically.
-              </div>
-              <div className="sandbox-awaiting-hint">/sandbox off · CLOSE</div>
-            </div>
-          )}
+        {phase !== 'preview' && phase !== 'awaiting' && (
+          <pre className="sandbox-code">
+            {streamed}
+            {phase === 'injecting' && <span className="sandbox-caret" />}
+          </pre>
+        )}
 
-          {phase !== 'preview' && phase !== 'awaiting' && (
-            <pre className="sandbox-code">
-              {streamed}
-              {phase === 'injecting' && <span className="sandbox-caret" />}
-            </pre>
-          )}
+        {phase === 'preview' && (
+          <iframe
+            ref={frameRef}
+            className="sandbox-frame"
+            title="Sandbox preview"
+            sandbox="allow-scripts allow-forms allow-modals allow-same-origin"
+          />
+        )}
 
-          {phase === 'preview' && (
-            <iframe
-              ref={frameRef}
-              className="sandbox-frame"
-              title="Sandbox preview"
-              sandbox="allow-scripts allow-forms allow-modals allow-same-origin"
-            />
-          )}
-
-          {phase === 'ready' && (
-            <div className="sandbox-overlay">
-              <div className="sandbox-card">
-                <div className="sandbox-card-label">{'>>'} COMPILATION COMPLETE</div>
-                <div className="sandbox-card-msg">PAYLOAD READY. EXECUTE TEST ENVIRONMENT?</div>
-                <div className="sandbox-card-actions">
-                  <button type="button" className="sb-btn sb-exec" onClick={execute}>
-                    EXECUTE PREVIEW
-                  </button>
-                  <button type="button" className="sb-btn" onClick={inspect}>
-                    INSPECT CODE
-                  </button>
-                </div>
+        {phase === 'ready' && (
+          <div className="sandbox-overlay">
+            <div className="sandbox-card">
+              <div className="sandbox-card-label">{'>>'} COMPILATION COMPLETE</div>
+              <div className="sandbox-card-msg">PAYLOAD READY. EXECUTE TEST ENVIRONMENT?</div>
+              <div className="sandbox-card-actions">
+                <button type="button" className="sb-btn sb-exec" onClick={execute}>
+                  EXECUTE PREVIEW
+                </button>
+                <button type="button" className="sb-btn" onClick={inspect}>
+                  INSPECT CODE
+                </button>
               </div>
             </div>
-          )}
-        </div>
-
-        <div className="sandbox-foot">
-          <span>
-            {phase === 'awaiting' && 'SANDBOX ACTIVE · AWAITING PAYLOAD'}
-            {phase === 'injecting' && 'INJECTING PAYLOAD…'}
-            {phase === 'ready' && 'AWAITING EXECUTE / INSPECT'}
-            {phase === 'preview' && `PREVIEW · ${(payload?.lang || 'code').toUpperCase()}`}
-            {phase === 'idle' && 'IDLE'}
-          </span>
-          {phase === 'preview' && (
-            <button type="button" className="sb-btn" onClick={() => setPhase('ready')}>
-              BACK TO PROMPT
-            </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </div>
+
+      <div className="sandbox-foot">
+        <span>
+          {phase === 'awaiting' && 'SANDBOX ACTIVE · AWAITING PAYLOAD'}
+          {phase === 'injecting' && 'INJECTING PAYLOAD…'}
+          {phase === 'ready' && 'AWAITING EXECUTE / INSPECT'}
+          {phase === 'preview' && `PREVIEW · ${(payload?.lang || 'code').toUpperCase()}`}
+          {phase === 'idle' && 'IDLE'}
+        </span>
+        {phase === 'preview' && (
+          <button type="button" className="sb-btn" onClick={() => setPhase('ready')}>
+            BACK
+          </button>
+        )}
+      </div>
+    </section>
   )
 }
