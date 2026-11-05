@@ -43,8 +43,6 @@ const M = {
 
 const RB = 'https://de1.api.radio-browser.info'
 
-/* ---------- Weather helpers ---------- */
-
 function conditionLabel(code) {
   const c = code ?? -1
   if (c === 0) return 'SUNNY'
@@ -122,7 +120,13 @@ function extractWeatherLocation(text) {
   return text.trim().replace(/^\/(?:weather|wheather)\s*/i, '').trim()
 }
 
-/* ---------- Radio (/rad) helpers — Radio Browser ---------- */
+function isSandboxCommand(text) {
+  return text.trim().toLowerCase().startsWith('/sandbox')
+}
+
+function sandboxCommandArg(text) {
+  return text.trim().replace(/^\/sandbox\s*/i, '').trim().toLowerCase()
+}
 
 function isRadCommand(text) {
   return text.trim().toLowerCase().startsWith('/rad')
@@ -320,6 +324,31 @@ export default function App() {
       setMessages((m) => [...m, mk('user', text)])
       setPulse((p) => p + 1)
       setStatus('processing')
+
+      if (isSandboxCommand(text)) {
+        const arg = sandboxCommandArg(text)
+        if (arg === 'off' || arg === 'close' || arg === 'exit') {
+          setSandboxActive(false)
+          setSandboxPayload(null)
+          const msg = 'Sandbox deactivated. HUD restored to primary systems.'
+          typeReply(msg)
+          speakText(msg, {
+            onStart: () => setStatus('speaking'),
+            onEnd: () => setStatus('ready'),
+          })
+          return
+        }
+        setSandboxPayload(null)
+        setSandboxActive(true)
+        const msg =
+          'Sandbox environment activated. Green injection channel is live. Ask for code and it will stream here automatically — or say /sandbox off to exit.'
+        typeReply(msg)
+        speakText(msg, {
+          onStart: () => setStatus('speaking'),
+          onEnd: () => setStatus('ready'),
+        })
+        return
+      }
 
       if (isRadCommand(text)) {
         const q = extractRadQuery(text)
