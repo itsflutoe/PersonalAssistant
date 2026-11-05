@@ -1,0 +1,178 @@
+/* ========== Sandbox mode (green cyber injection) ========== */
+.viewport.sandbox-mode {
+  --c: #3dff9a;
+  --c-bright: #9affe0;
+  --c-dim: rgba(61, 255, 154, 0.55);
+  --line: rgba(61, 255, 154, 0.5);
+  --panel: rgba(4, 40, 28, 0.55);
+  --text: #c8ffe8;
+}
+
+.sandbox-root {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 20, 12, 0.55) 100%);
+}
+
+.sandbox-root.is-fs {
+  padding: 0;
+  background: #020a08;
+  pointer-events: auto;
+}
+
+.sandbox-panel {
+  pointer-events: auto;
+  width: min(920px, 100%);
+  max-height: min(72vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(4, 22, 16, 0.96);
+  border: 1px solid rgba(61, 255, 154, 0.4);
+  border-radius: 8px;
+  box-shadow: 0 0 40px rgba(40, 255, 160, 0.18), 0 -8px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.sandbox-root.is-fs .sandbox-panel {
+  width: 100%;
+  max-height: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.sandbox-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(0, 50, 32, 0.55);
+  border-bottom: 1px solid rgba(61, 255, 154, 0.3);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: #9affe0;
+}
+
+.sandbox-title { text-shadow: 0 0 10px rgba(61, 255, 154, 0.5); }
+.sandbox-head-actions { display: flex; gap: 8px; }
+
+.sandbox-body {
+  position: relative;
+  flex: 1;
+  min-height: 280px;
+  background: #040e0c;
+  overflow: hidden;
+}
+
+.sandbox-code {
+  margin: 0;
+  padding: 14px 16px;
+  height: 100%;
+  overflow: auto;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #9affe0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sandbox-caret {
+  display: inline-block;
+  width: 7px;
+  height: 12px;
+  margin-left: 2px;
+  background: #3dff9a;
+  vertical-align: -2px;
+  animation: blink 0.85s steps(2, jump-none) infinite;
+}
+
+.sandbox-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+}
+
+.sandbox-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(2, 12, 8, 0.72);
+}
+
+.sandbox-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 18px 20px;
+  background: rgba(6, 28, 20, 0.95);
+  border: 1px solid rgba(61, 255, 154, 0.45);
+  border-radius: 6px;
+  box-shadow: 0 0 30px rgba(40, 255, 160, 0.2);
+}
+
+.sandbox-card-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: #3dff9a;
+  margin-bottom: 8px;
+  text-shadow: 0 0 8px rgba(61, 255, 154, 0.45);
+}
+
+.sandbox-card-msg {
+  font-size: 13px;
+  color: #c8ffe8;
+  margin-bottom: 14px;
+  line-height: 1.45;
+}
+
+.sandbox-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sb-btn {
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid rgba(61, 255, 154, 0.4);
+  background: rgba(0, 40, 28, 0.7);
+  color: #9affe0;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.sb-btn:hover {
+  background: rgba(40, 180, 120, 0.25);
+  box-shadow: 0 0 12px rgba(61, 255, 154, 0.35);
+}
+.sb-exec {
+  flex: 1;
+  background: rgba(40, 200, 140, 0.2);
+  border-color: #3dff9a;
+  color: #b8ffe0;
+}
+.sb-close { opacity: 0.85; }
+
+.sandbox-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  border-top: 1px solid rgba(61, 255, 154, 0.25);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(154, 255, 224, 0.7);
+  background: rgba(0, 30, 20, 0.5);
+}
