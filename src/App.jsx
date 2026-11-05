@@ -524,7 +524,7 @@ export default function App() {
       <Platform style={mobile ? M.platform : undefined} />
       <OrbRings style={mobile ? M.rings : undefined} />
       <div className="orb-wrap" style={mobile ? M.orb : undefined}>
-        <Orb pulse={pulse} mode={status} />
+        <Orb pulse={pulse} mode={status} tint={sandboxActive ? 'green' : 'cyan'} />
       </div>
 
       {!mobile && (
@@ -573,6 +573,19 @@ export default function App() {
         messages={messages}
         style={mobile ? M.text : { left: 1010, top: 65, width: 335, height: 262 }}
       />
+      <Sandbox
+        active={sandboxActive}
+        payload={sandboxPayload}
+        onClose={() => {
+          setSandboxActive(false)
+          setSandboxPayload(null)
+        }}
+        style={
+          mobile
+            ? { left: 12, top: 392, width: 376, height: 230 }
+            : { left: 1010, top: 340, width: 335, height: 250 }
+        }
+      />
       <CommandTerminal
         onSubmit={handleSubmit}
         onMic={handleMic}
@@ -583,30 +596,13 @@ export default function App() {
     </div>
   )
 
-  const sandboxUi = (
-    <Sandbox
-      active={sandboxActive}
-      payload={sandboxPayload}
-      onClose={() => {
-        setSandboxActive(false)
-        setSandboxPayload(null)
-      }}
-    />
-  )
-
   if (mobile) {
     return (
       <div className={`viewport mobile${sandboxActive ? ' sandbox-mode' : ''}`}>
         <div style={{ position: 'relative', width: stageW * scale, height: stageH * scale }}>{stage}</div>
-        {sandboxUi}
       </div>
     )
   }
 
-  return (
-    <div className={`viewport${sandboxActive ? ' sandbox-mode' : ''}`}>
-      {stage}
-      {sandboxUi}
-    </div>
-  )
+  return <div className={`viewport${sandboxActive ? ' sandbox-mode' : ''}`}>{stage}</div>
 }
