@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 
-/** Extract fenced code blocks from markdown-ish AI replies. */
 export function extractCodeBlocks(text) {
   if (!text || typeof text !== 'string') return []
   const re = /```(\w*)\s*\n?([\s\S]*?)```/g
@@ -14,7 +13,6 @@ export function extractCodeBlocks(text) {
   return out
 }
 
-/** Prefer blocks that can run in a browser preview. */
 export function pickRunnableBlock(blocks) {
   if (!blocks?.length) return null
   const rank = (lang) => {
@@ -145,7 +143,6 @@ export default function Sandbox({ payload, active, onClose }) {
   }
 
   const inspect = () => {
-    setPhase('injecting')
     setStreamed(payload?.code || '')
     setPhase('ready')
   }
@@ -154,9 +151,9 @@ export default function Sandbox({ payload, active, onClose }) {
 
   return (
     <div className={`sandbox-root${fullscreen ? ' is-fs' : ''}`}>
-      <div className="sandbox-panel">
+      <div className="sandbox-layer">
         <div className="sandbox-head">
-          <span className="sandbox-title">SANDBOX // CODE INJECTION</span>
+          <span>▸ SANDBOX CHANNEL · INJECTION</span>
           <div className="sandbox-head-actions">
             {phase === 'preview' && (
               <button type="button" className="sb-btn" onClick={() => setFullscreen((f) => !f)}>
@@ -164,7 +161,7 @@ export default function Sandbox({ payload, active, onClose }) {
               </button>
             )}
             <button type="button" className="sb-btn sb-close" onClick={onClose}>
-              CLOSE
+              ×
             </button>
           </div>
         </div>
